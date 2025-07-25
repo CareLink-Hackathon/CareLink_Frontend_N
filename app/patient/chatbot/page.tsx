@@ -78,7 +78,9 @@ export default function PatientChatbot() {
 	const analyserRef = useRef<AnalyserNode | null>(null);
 	const animationFrameRef = useRef<number | undefined>(undefined);
 	const recordingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
-	const reviewRecordingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+	const reviewRecordingIntervalRef = useRef<NodeJS.Timeout | undefined>(
+		undefined
+	);
 	const audioChunksRef = useRef<Blob[]>([]);
 
 	const router = useRouter();
@@ -147,15 +149,17 @@ export default function PatientChatbot() {
 			};
 
 			mediaRecorder.onstop = () => {
-				const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+				const audioBlob = new Blob(audioChunksRef.current, {
+					type: 'audio/wav',
+				});
 				const audioId = Date.now().toString();
 				const audioFile: RecordedAudio = {
 					id: audioId,
 					blob: audioBlob,
 					duration: recordingTime,
-					name: `Recording_${new Date().toLocaleTimeString()}`
+					name: `Recording_${new Date().toLocaleTimeString()}`,
 				};
-				setRecordedAudios(prev => [...prev, audioFile]);
+				setRecordedAudios((prev) => [...prev, audioFile]);
 			};
 		} catch (error) {
 			console.error('Error starting recording:', error);
@@ -190,21 +194,21 @@ export default function PatientChatbot() {
 	const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const files = event.target.files;
 		if (files) {
-			const newFiles = Array.from(files).map(file => ({
+			const newFiles = Array.from(files).map((file) => ({
 				file,
 				id: Date.now().toString() + Math.random().toString(),
 				status: 'uploading' as const,
-				progress: 0
+				progress: 0,
 			}));
-			
+
 			setUploadedFiles((prev) => [...prev, ...newFiles]);
-			
+
 			// Simulate upload progress
 			newFiles.forEach((uploadFile, index) => {
 				const interval = setInterval(() => {
-					setUploadedFiles(prev => 
-						prev.map(f => 
-							f.id === uploadFile.id 
+					setUploadedFiles((prev) =>
+						prev.map((f) =>
+							f.id === uploadFile.id
 								? { ...f, progress: Math.min(f.progress + 20, 100) }
 								: f
 						)
@@ -213,9 +217,9 @@ export default function PatientChatbot() {
 
 				setTimeout(() => {
 					clearInterval(interval);
-					setUploadedFiles(prev => 
-						prev.map(f => 
-							f.id === uploadFile.id 
+					setUploadedFiles((prev) =>
+						prev.map((f) =>
+							f.id === uploadFile.id
 								? { ...f, status: 'completed', progress: 100 }
 								: f
 						)
@@ -249,13 +253,13 @@ export default function PatientChatbot() {
 
 	// Audio playback functions
 	const playAudio = (audioId: string) => {
-		const audio = recordedAudios.find(a => a.id === audioId);
+		const audio = recordedAudios.find((a) => a.id === audioId);
 		if (audio) {
 			const audioUrl = URL.createObjectURL(audio.blob);
 			const audioElement = new Audio(audioUrl);
 			audioElement.play();
 			setPlayingAudioId(audioId);
-			
+
 			audioElement.onended = () => {
 				setPlayingAudioId(null);
 				URL.revokeObjectURL(audioUrl);
@@ -469,7 +473,9 @@ export default function PatientChatbot() {
 				{/* Header */}
 				<div className="p-4 border-b border-gray-200 bg-gray-50">
 					<div className="flex items-center justify-between">
-						<h1 className="text-lg xl:text-xl font-bold text-gray-800">Chat History</h1>
+						<h1 className="text-lg xl:text-xl font-bold text-gray-800">
+							Chat History
+						</h1>
 						<Button
 							variant="ghost"
 							size="icon"
@@ -497,7 +503,9 @@ export default function PatientChatbot() {
 								className="p-3 bg-gray-50 hover:bg-blue-50 rounded-xl cursor-pointer transition-all duration-200 border border-gray-100 hover:border-blue-200"
 							>
 								<div className="flex items-center justify-between mb-2">
-									<h3 className="font-medium text-gray-800 text-sm">{chat.title}</h3>
+									<h3 className="font-medium text-gray-800 text-sm">
+										{chat.title}
+									</h3>
 									<span className="text-xs text-gray-500">{chat.time}</span>
 								</div>
 								<p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
@@ -528,7 +536,9 @@ export default function PatientChatbot() {
 									<MessageSquare className="w-5 h-5 text-white" />
 								</div>
 								<div className="min-w-0">
-									<h2 className="font-semibold text-gray-800 truncate">CareLink AI Assistant</h2>
+									<h2 className="font-semibold text-gray-800 truncate">
+										CareLink AI Assistant
+									</h2>
 									<div className="flex items-center space-x-1">
 										<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
 										<p className="text-sm text-green-600 font-medium">Online</p>
@@ -568,22 +578,38 @@ export default function PatientChatbot() {
 											: 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
 									}`}
 								>
-									<p className="text-sm sm:text-base break-words leading-relaxed">{msg.content}</p>
-									<div className={`text-xs mt-2 ${
-										msg.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-									}`}>
+									<p className="text-sm sm:text-base break-words leading-relaxed">
+										{msg.content}
+									</p>
+									<div
+										className={`text-xs mt-2 ${
+											msg.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+										}`}
+									>
 										{msg.timestamp}
 									</div>
 								</div>
 								{msg.type === 'bot' && (
 									<div className="flex items-center space-x-2 mt-3 ml-2">
-										<Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-gray-100">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="w-8 h-8 hover:bg-gray-100"
+										>
 											<Copy className="w-4 h-4 text-gray-500" />
 										</Button>
-										<Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-gray-100">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="w-8 h-8 hover:bg-gray-100"
+										>
 											<ThumbsUp className="w-4 h-4 text-gray-500" />
 										</Button>
-										<Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-gray-100">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="w-8 h-8 hover:bg-gray-100"
+										>
 											<ThumbsDown className="w-4 h-4 text-gray-500" />
 										</Button>
 									</div>
@@ -609,7 +635,9 @@ export default function PatientChatbot() {
 					{/* Uploaded Files Display */}
 					{uploadedFiles.length > 0 && (
 						<div className="mb-4">
-							<h4 className="text-sm font-medium text-gray-700 mb-3">Attached Files</h4>
+							<h4 className="text-sm font-medium text-gray-700 mb-3">
+								Attached Files
+							</h4>
 							<div className="space-y-2">
 								{uploadedFiles.map((uploadedFile) => (
 									<div
@@ -635,7 +663,10 @@ export default function PatientChatbot() {
 												</div>
 												{uploadedFile.status === 'uploading' && (
 													<div className="mt-1">
-														<Progress value={uploadedFile.progress} className="h-1" />
+														<Progress
+															value={uploadedFile.progress}
+															className="h-1"
+														/>
 													</div>
 												)}
 											</div>
@@ -657,7 +688,9 @@ export default function PatientChatbot() {
 					{/* Recorded Audio Display */}
 					{recordedAudios.length > 0 && (
 						<div className="mb-4">
-							<h4 className="text-sm font-medium text-gray-700 mb-3">Voice Recordings</h4>
+							<h4 className="text-sm font-medium text-gray-700 mb-3">
+								Voice Recordings
+							</h4>
 							<div className="space-y-2">
 								{recordedAudios.map((audio) => (
 									<div
@@ -684,7 +717,11 @@ export default function PatientChatbot() {
 												variant="ghost"
 												size="icon"
 												className="w-8 h-8 text-blue-600 hover:bg-blue-100"
-												onClick={() => playingAudioId === audio.id ? stopAudio() : playAudio(audio.id)}
+												onClick={() =>
+													playingAudioId === audio.id
+														? stopAudio()
+														: playAudio(audio.id)
+												}
 											>
 												{playingAudioId === audio.id ? (
 													<Pause className="w-4 h-4" />
@@ -760,7 +797,11 @@ export default function PatientChatbot() {
 								onKeyDown={(e) => {
 									if (e.key === 'Enter' && !e.shiftKey) {
 										e.preventDefault();
-										if (message.trim() || uploadedFiles.length > 0 || recordedAudios.length > 0) {
+										if (
+											message.trim() ||
+											uploadedFiles.length > 0 ||
+											recordedAudios.length > 0
+										) {
 											// Send message logic here
 											console.log('Sending:', {
 												message,
@@ -796,9 +837,9 @@ export default function PatientChatbot() {
 									variant="ghost"
 									size="icon"
 									className={`w-8 h-8 transition-all duration-200 ${
-										isRecording 
-											? "bg-red-100 text-red-600 hover:bg-red-200 scale-110" 
-											: "hover:bg-gray-100 text-gray-500"
+										isRecording
+											? 'bg-red-100 text-red-600 hover:bg-red-200 scale-110'
+											: 'hover:bg-gray-100 text-gray-500'
 									}`}
 									onClick={isRecording ? stopRecording : startRecording}
 									title={isRecording ? 'Stop recording' : 'Voice recording'}
@@ -815,7 +856,11 @@ export default function PatientChatbot() {
 							size="icon"
 							className="w-12 h-12 bg-blue-600 hover:bg-blue-700 shadow-md rounded-xl"
 							onClick={() => {
-								if (message.trim() || uploadedFiles.length > 0 || recordedAudios.length > 0) {
+								if (
+									message.trim() ||
+									uploadedFiles.length > 0 ||
+									recordedAudios.length > 0
+								) {
 									// Send message logic here
 									console.log('Sending:', {
 										message,
@@ -840,7 +885,7 @@ export default function PatientChatbot() {
 								variant="ghost"
 								size="sm"
 								className="text-xs h-7 px-2 text-gray-600 hover:bg-gray-100"
-								onClick={() => setMessage("I need help with my symptoms")}
+								onClick={() => setMessage('I need help with my symptoms')}
 							>
 								Symptoms
 							</Button>
@@ -848,7 +893,9 @@ export default function PatientChatbot() {
 								variant="ghost"
 								size="sm"
 								className="text-xs h-7 px-2 text-gray-600 hover:bg-gray-100"
-								onClick={() => setMessage("Can you help me book an appointment?")}
+								onClick={() =>
+									setMessage('Can you help me book an appointment?')
+								}
 							>
 								Appointment
 							</Button>
@@ -932,8 +979,8 @@ export default function PatientChatbot() {
 												: startReviewRecording
 										}
 										className={`transition-all duration-200 ${
-											isRecordingReview 
-												? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' 
+											isRecordingReview
+												? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
 												: 'hover:bg-gray-50'
 										}`}
 									>
