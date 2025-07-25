@@ -1,18 +1,33 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function SigningIn() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const userType = searchParams.get('userType') || 'patient';
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
-			router.push('/dashboard');
+			// Route to the correct dashboard based on user type
+			switch (userType) {
+				case 'patient':
+					router.push('/patient/dashboard');
+					break;
+				case 'doctor':
+					router.push('/doctor/dashboard');
+					break;
+				case 'admin':
+					router.push('/admin/dashboard');
+					break;
+				default:
+					router.push('/patient/dashboard');
+			}
 		}, 3000);
 
 		return () => clearTimeout(timer);
-	}, [router]);
+	}, [router, userType]);
 
 	return (
 		<div className="min-h-screen flex flex-col lg:flex-row">
