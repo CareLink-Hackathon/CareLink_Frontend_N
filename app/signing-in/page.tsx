@@ -92,11 +92,13 @@ function SigningInContent() {
 
 export default function SigningIn() {
 	return (
-		<Suspense fallback={
-			<div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
-				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-			</div>
-		}>
+		<Suspense
+			fallback={
+				<div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+					<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+				</div>
+			}
+		>
 			<SigningInContent />
 		</Suspense>
 	);
