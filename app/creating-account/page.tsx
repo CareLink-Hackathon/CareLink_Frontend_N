@@ -77,24 +77,26 @@ function CreatingAccountContent() {
 
 export default function CreatingAccount() {
 	return (
-		<Suspense fallback={
-			<div className="min-h-screen flex flex-col lg:flex-row">
-				<div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-white">
-					<div className="text-center space-y-8">
-						<h1 className="text-2xl sm:text-3xl font-bold text-blue-600">
-							Creating your Account
-						</h1>
-						<div className="flex items-center justify-center">
-							<div className="relative">
-								<div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
-								<div className="absolute top-0 left-0 w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+		<Suspense
+			fallback={
+				<div className="min-h-screen flex flex-col lg:flex-row">
+					<div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-white">
+						<div className="text-center space-y-8">
+							<h1 className="text-2xl sm:text-3xl font-bold text-blue-600">
+								Creating your Account
+							</h1>
+							<div className="flex items-center justify-center">
+								<div className="relative">
+									<div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
+									<div className="absolute top-0 left-0 w-16 h-16 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+								</div>
 							</div>
+							<p className="text-gray-500">Loading...</p>
 						</div>
-						<p className="text-gray-500">Loading...</p>
 					</div>
 				</div>
-			</div>
-		}>
+			}
+		>
 			<CreatingAccountContent />
 		</Suspense>
 	);
