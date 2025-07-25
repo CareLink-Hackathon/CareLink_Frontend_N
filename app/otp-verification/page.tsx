@@ -2,7 +2,17 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEff          <div className="text-center space-y-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+              <Smartphone className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Verify Your Phone</h1>
+            <p className="text-sm sm:text-base text-gray-600">
+              We've sent a 6-digit verification code to
+              <br />
+              <span className="font-medium text-gray-900">+237 656 776 987</span>
+            </p>
+          </div> } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -56,9 +66,9 @@ export default function OTPVerification() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Panel - OTP Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-white">
         <div className="w-full max-w-md space-y-8">
           <Button
             variant="ghost"
