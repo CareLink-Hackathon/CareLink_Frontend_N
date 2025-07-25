@@ -1,18 +1,21 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function CreatingAccount() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const userType = searchParams.get('userType') || 'patient';
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
-			router.push('/dashboard');
+			// Pass user type to signing-in page
+			router.push(`/signing-in?userType=${userType}`);
 		}, 3000);
 
 		return () => clearTimeout(timer);
-	}, [router]);
+	}, [router, userType]);
 
 	return (
 		<div className="min-h-screen flex flex-col lg:flex-row">
