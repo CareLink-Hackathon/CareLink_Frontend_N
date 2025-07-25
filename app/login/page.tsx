@@ -7,20 +7,35 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Facebook, Chrome, Apple } from "lucide-react"
 import Link from "next/link"
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
+  const [userType, setUserType] = useState("patient")
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate login process
+    // Simulate login
     setTimeout(() => {
-      router.push("/otp-verification")
+      // Route based on user type
+      switch (userType) {
+        case "patient":
+          router.push("/patient/dashboard")
+          break
+        case "doctor":
+          router.push("/doctor/dashboard")
+          break
+        case "admin":
+          router.push("/admin/dashboard")
+          break
+        default:
+          router.push("/patient/dashboard")
+      }
     }, 1000)
   }
 
@@ -43,6 +58,21 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
+            {/* User Type Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="userType">Login As</Label>
+              <Select value={userType} onValueChange={setUserType}>
+                <SelectTrigger className="border-gray-300">
+                  <SelectValue placeholder="Select login type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="patient">Patient</SelectItem>
+                  <SelectItem value="doctor">Doctor</SelectItem>
+                  <SelectItem value="admin">Hospital Administrator</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -56,12 +86,12 @@ export default function Login() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••••" className="border-gray-300" />
+              <Input id="password" type="password" placeholder="••••••••" className="border-gray-300" />
             </div>
 
             <div className="text-center">
-              <Link href="#" className="text-sm text-gray-600">
-                Forgot Password? <span className="text-blue-600 hover:underline">Reset Your Password</span>
+              <Link href="#" className="text-blue-600 hover:underline text-sm">
+                Forgot Password? Reset Your Password
               </Link>
             </div>
 

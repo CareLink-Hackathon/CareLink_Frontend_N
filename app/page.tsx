@@ -14,6 +14,7 @@ import Link from "next/link"
 
 export default function CreateAccount() {
   const [isLoading, setIsLoading] = useState(false)
+  const [userType, setUserType] = useState("patient")
   const router = useRouter()
 
   const handleCreateAccount = async (e: React.FormEvent) => {
@@ -45,6 +46,21 @@ export default function CreateAccount() {
           </div>
 
           <form onSubmit={handleCreateAccount} className="space-y-4">
+            {/* User Type Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="userType">Account Type</Label>
+              <Select value={userType} onValueChange={setUserType}>
+                <SelectTrigger className="border-gray-300">
+                  <SelectValue placeholder="Select account type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="patient">Patient</SelectItem>
+                  <SelectItem value="doctor">Doctor</SelectItem>
+                  <SelectItem value="admin">Hospital Administrator</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
@@ -55,6 +71,31 @@ export default function CreateAccount() {
                 <Input id="lastName" placeholder="Enter name" className="border-gray-300" />
               </div>
             </div>
+
+            {userType === "doctor" && (
+              <div className="space-y-2">
+                <Label htmlFor="specialty">Medical Specialty</Label>
+                <Select>
+                  <SelectTrigger className="border-gray-300">
+                    <SelectValue placeholder="Select specialty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cardiology">Cardiology</SelectItem>
+                    <SelectItem value="dermatology">Dermatology</SelectItem>
+                    <SelectItem value="gynecology">Gynecology</SelectItem>
+                    <SelectItem value="pediatrics">Pediatrics</SelectItem>
+                    <SelectItem value="orthopedics">Orthopedics</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {userType === "admin" && (
+              <div className="space-y-2">
+                <Label htmlFor="hospital">Hospital/Clinic</Label>
+                <Input id="hospital" placeholder="Enter hospital name" className="border-gray-300" />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
@@ -81,20 +122,6 @@ export default function CreateAccount() {
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" placeholder="Enter password" className="border-gray-300" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="language">Language</Label>
-              <Select>
-                <SelectTrigger className="border-gray-300">
-                  <SelectValue placeholder="Choose Native Language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="fr">French</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="flex items-center space-x-2">
