@@ -52,9 +52,9 @@ export default function PatientChatbot() {
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const audioContextRef = useRef<AudioContext | null>(null);
 	const analyserRef = useRef<AnalyserNode | null>(null);
-	const animationFrameRef = useRef<number>();
-	const recordingIntervalRef = useRef<NodeJS.Timeout>();
-	const reviewRecordingIntervalRef = useRef<NodeJS.Timeout>();
+	const animationFrameRef = useRef<number | undefined>(undefined);
+	const recordingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+	const reviewRecordingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
 	const router = useRouter();
 
@@ -445,7 +445,6 @@ export default function PatientChatbot() {
 							</Button>
 						</div>
 					</div>
-				</div>
 				</div>
 
 				{/* Chat History */}
