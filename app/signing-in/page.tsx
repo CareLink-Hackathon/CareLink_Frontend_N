@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function SigningIn() {
+function SigningInContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const userType = searchParams.get('userType') || 'patient';
@@ -87,5 +87,17 @@ export default function SigningIn() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+export default function SigningIn() {
+	return (
+		<Suspense fallback={
+			<div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+			</div>
+		}>
+			<SigningInContent />
+		</Suspense>
 	);
 }
