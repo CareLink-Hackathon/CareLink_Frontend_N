@@ -29,7 +29,8 @@ export default function CreateAccount() {
 
 		// Simulate account creation
 		setTimeout(() => {
-			router.push('/creating-account');
+			// Pass user type to the creating account page via URL params
+			router.push(`/creating-account?userType=${userType}`);
 		}, 1000);
 	};
 
