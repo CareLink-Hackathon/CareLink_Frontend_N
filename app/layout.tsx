@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "CareLink",
   description:
     "CareLink connects patients and healthcare providers through a secure platform for streamlined communication, appointment management, and improved care delivery.",
-    generator: 'v0.dev'
+
 }
 
 export default function RootLayout({
