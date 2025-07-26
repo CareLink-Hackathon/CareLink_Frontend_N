@@ -2,12 +2,12 @@
 
 _Connected Care, Closer to You._
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://carelink.vercel.app)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://care2link.vercel.app)
 [![Built with React](https://img.shields.io/badge/Built%20with-React-blue?style=for-the-badge&logo=react)](https://reactjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-blue?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com)
 
-## 🌍 **Live Application**: [https://carelink.vercel.app](https://carelink.vercel.app)
+## 🌍 **Live Application**: [https://care2link.vercel.app](https://care2link.vercel.app)
 
 ---
 
@@ -330,7 +330,7 @@ Optimize blood bank inventory management to reduce waste, prevent critical short
 
 ## 🚀 **Deployment & Access Information**
 
-**Production Environment**: [https://carelink.vercel.app](https://carelink.vercel.app)
+**Production Environment**: [https://care2link.vercel.app](https://care2link.vercel.app)
 
 **System Requirements**:
 
