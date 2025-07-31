@@ -15,23 +15,118 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { Facebook, Chrome, Apple } from 'lucide-react';
+import { Facebook, Chrome, Apple, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { validateEmail, validatePhone, validatePassword } from '@/lib/auth';
 
 export default function CreateAccount() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [userType, setUserType] = useState('patient');
+	const [formData, setFormData] = useState({
+		firstName: '',
+		lastName: '',
+		email: '',
+		phone: '',
+		password: '',
+		specialty: '',
+		hospitalName: '',
+		termsAccepted: false,
+	});
+	const [error, setError] = useState('');
 	const router = useRouter();
+	const { signup } = useAuth();
+
+	const handleInputChange = (field: string, value: string | boolean) => {
+		setFormData((prev) => ({
+			...prev,
+			[field]: value,
+		}));
+	};
+
+	const validateForm = () => {
+		// Check required fields
+		if (
+			!formData.firstName.trim() ||
+			!formData.lastName.trim() ||
+			!formData.email.trim() ||
+			!formData.phone.trim() ||
+			!formData.password.trim()
+		) {
+			return 'Please fill in all required fields';
+		}
+
+		// Validate email
+		if (!validateEmail(formData.email)) {
+			return 'Please enter a valid email address';
+		}
+
+		// Validate phone
+		if (!validatePhone(formData.phone)) {
+			return 'Please enter a valid phone number';
+		}
+
+		// Validate password
+		const passwordValidation = validatePassword(formData.password);
+		if (!passwordValidation.isValid) {
+			return passwordValidation.message || 'Password is invalid';
+		}
+
+		// Check doctor specialty
+		if (userType === 'doctor' && !formData.specialty) {
+			return 'Please select a medical specialty';
+		}
+
+		// Check hospital name for admin
+		if (userType === 'admin' && !formData.hospitalName.trim()) {
+			return 'Please enter hospital name';
+		}
+
+		// Check terms acceptance
+		if (!formData.termsAccepted) {
+			return 'Please accept the terms and conditions';
+		}
+
+		return null;
+	};
 
 	const handleCreateAccount = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
+		setError('');
 
-		// Simulate account creation
-		setTimeout(() => {
-			// Pass user type to the creating account page via URL params
+		// Validate form
+		const validationError = validateForm();
+		if (validationError) {
+			setError(validationError);
+			setIsLoading(false);
+			return;
+		}
+
+		try {
+			// Prepare signup data according to backend API
+			const signupData = {
+				account_type: userType === 'admin' ? 'hospital' : userType,
+				first_name: formData.firstName,
+				last_name: formData.lastName,
+				email: formData.email,
+				phone_number: formData.phone,
+				password: formData.password,
+				language: 'en',
+				...(userType === 'doctor' && { specialty: formData.specialty }),
+				...(userType === 'admin' && { hospital_name: formData.hospitalName }),
+			};
+
+			await signup(signupData);
+
+			// Navigate to success page
 			router.push(`/creating-account?userType=${userType}`);
-		}, 1000);
+		} catch (error: any) {
+			setError(error.message || 'Failed to create account. Please try again.');
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	return (
@@ -63,6 +158,14 @@ export default function CreateAccount() {
 					</div>
 
 					<form onSubmit={handleCreateAccount} className="space-y-4">
+						{/* Error Alert */}
+						{error && (
+							<Alert variant="destructive">
+								<AlertCircle className="h-4 w-4" />
+								<AlertDescription>{error}</AlertDescription>
+							</Alert>
+						)}
+
 						{/* User Type Selection */}
 						<div className="space-y-2">
 							<Label htmlFor="userType">Account Type</Label>
@@ -83,16 +186,26 @@ export default function CreateAccount() {
 								<Label htmlFor="firstName">First Name</Label>
 								<Input
 									id="firstName"
-									placeholder="Enter name"
+									placeholder="Enter first name"
 									className="border-gray-300"
+									value={formData.firstName}
+									onChange={(e) =>
+										handleInputChange('firstName', e.target.value)
+									}
+									required
 								/>
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="lastName">Last Name</Label>
 								<Input
 									id="lastName"
-									placeholder="Enter name"
+									placeholder="Enter last name"
 									className="border-gray-300"
+									value={formData.lastName}
+									onChange={(e) =>
+										handleInputChange('lastName', e.target.value)
+									}
+									required
 								/>
 							</div>
 						</div>
@@ -100,7 +213,12 @@ export default function CreateAccount() {
 						{userType === 'doctor' && (
 							<div className="space-y-2">
 								<Label htmlFor="specialty">Medical Specialty</Label>
-								<Select>
+								<Select
+									value={formData.specialty}
+									onValueChange={(value) =>
+										handleInputChange('specialty', value)
+									}
+								>
 									<SelectTrigger className="border-gray-300">
 										<SelectValue placeholder="Select specialty" />
 									</SelectTrigger>
@@ -110,6 +228,13 @@ export default function CreateAccount() {
 										<SelectItem value="gynecology">Gynecology</SelectItem>
 										<SelectItem value="pediatrics">Pediatrics</SelectItem>
 										<SelectItem value="orthopedics">Orthopedics</SelectItem>
+										<SelectItem value="neurology">Neurology</SelectItem>
+										<SelectItem value="psychiatry">Psychiatry</SelectItem>
+										<SelectItem value="emergency">
+											Emergency Medicine
+										</SelectItem>
+										<SelectItem value="family">Family Medicine</SelectItem>
+										<SelectItem value="internal">Internal Medicine</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
@@ -117,11 +242,16 @@ export default function CreateAccount() {
 
 						{userType === 'admin' && (
 							<div className="space-y-2">
-								<Label htmlFor="hospital">Hospital/Clinic</Label>
+								<Label htmlFor="hospital">Hospital/Clinic Name</Label>
 								<Input
 									id="hospital"
 									placeholder="Enter hospital name"
 									className="border-gray-300"
+									value={formData.hospitalName}
+									onChange={(e) =>
+										handleInputChange('hospitalName', e.target.value)
+									}
+									required
 								/>
 							</div>
 						)}
@@ -143,6 +273,9 @@ export default function CreateAccount() {
 									id="phone"
 									placeholder="Enter phone number"
 									className="flex-1 ml-2 border-gray-300"
+									value={formData.phone}
+									onChange={(e) => handleInputChange('phone', e.target.value)}
+									required
 								/>
 							</div>
 						</div>
@@ -154,6 +287,9 @@ export default function CreateAccount() {
 								type="email"
 								placeholder="Enter email"
 								className="border-gray-300"
+								value={formData.email}
+								onChange={(e) => handleInputChange('email', e.target.value)}
+								required
 							/>
 						</div>
 
@@ -162,14 +298,26 @@ export default function CreateAccount() {
 							<Input
 								id="password"
 								type="password"
-								placeholder="Enter password"
+								placeholder="Enter password (min 6 characters)"
 								className="border-gray-300"
+								value={formData.password}
+								onChange={(e) => handleInputChange('password', e.target.value)}
+								required
 							/>
 						</div>
 
-						<div className="flex items-center space-x-2">
-							<Checkbox id="terms" />
-							<Label htmlFor="terms" className="text-sm text-gray-600">
+						<div className="flex items-start space-x-2">
+							<Checkbox
+								id="terms"
+								checked={formData.termsAccepted}
+								onCheckedChange={(checked) =>
+									handleInputChange('termsAccepted', checked as boolean)
+								}
+							/>
+							<Label
+								htmlFor="terms"
+								className="text-sm text-gray-600 leading-5"
+							>
 								By signing up, you have agreed to our{' '}
 								<Link href="#" className="text-blue-600 hover:underline">
 									Terms & Conditions
