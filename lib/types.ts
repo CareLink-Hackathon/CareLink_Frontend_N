@@ -1,5 +1,6 @@
 // Authentication types and interfaces
 
+// User types
 export interface User {
 	_id: string;
 	account_type: 'patient' | 'doctor' | 'hospital';
@@ -7,14 +8,13 @@ export interface User {
 	last_name: string;
 	email: string;
 	phone_number: string;
-	language?: string;
-	specialty?: string; // for doctors
-	hospital_name?: string; // for hospitals/admins
-	isAdmin?: number; // for hospitals
-	token: string;
-	created_at: string;
-	updated_at: string;
-	chatHistory?: any[]; // for patients
+	language: string;
+	isAdmin?: boolean;
+	specialty?: string;
+	hospital_name?: string;
+	chats?: Chat[];
+	created_at?: string;
+	updated_at?: string;
 }
 
 export interface SignupRequest {
@@ -43,8 +43,8 @@ export interface AuthResponse {
 
 // Chat types
 export interface ChatMessage {
-	user_message: string;
-	bot_response: string;
+	query: string;
+	response: string;
 	timestamp: string;
 }
 
@@ -62,6 +62,12 @@ export interface NewChatRequest {
 
 export interface ChatMessageRequest {
 	message: string;
+}
+
+export interface ChatResponse {
+	response: string;
+	chat_name: string;
+	chat_id: string;
 }
 
 // Appointment types
@@ -90,8 +96,21 @@ export interface Appointment {
 // Feedback types
 export interface FeedbackRequest {
 	message: string;
-	rating?: number;
+	ratings?: number;
 	category?: string;
+}
+
+export interface FeedbackResponse {
+	message: string;
+}
+
+export interface FeedbackAnalysis {
+	user_id: string;
+	category: string;
+	sentiment: string;
+	rating?: number;
+	message: string;
+	_id?: string;
 }
 
 export interface Feedback {
