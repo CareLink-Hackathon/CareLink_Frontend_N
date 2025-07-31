@@ -2,20 +2,43 @@
 
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 
 function CreatingAccountContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const userType = searchParams.get('userType') || 'patient';
+	const { user, isAuthenticated } = useAuth();
 
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			// Pass user type to signing-in page
-			router.push(`/signing-in?userType=${userType}`);
-		}, 3000);
+		// If user is authenticated, redirect to appropriate dashboard immediately
+		if (isAuthenticated && user) {
+			const timer = setTimeout(() => {
+				switch (user.account_type) {
+					case 'patient':
+						router.push('/patient/dashboard');
+						break;
+					case 'doctor':
+						router.push('/doctor/dashboard');
+						break;
+					case 'hospital':
+						router.push('/admin/dashboard');
+						break;
+					default:
+						router.push('/patient/dashboard');
+				}
+			}, 2000);
 
-		return () => clearTimeout(timer);
-	}, [router, userType]);
+			return () => clearTimeout(timer);
+		} else {
+			// If not authenticated, redirect back to signup
+			const timer = setTimeout(() => {
+				router.push('/');
+			}, 3000);
+
+			return () => clearTimeout(timer);
+		}
+	}, [router, userType, user, isAuthenticated]);
 
 	return (
 		<div className="min-h-screen flex flex-col lg:flex-row">
@@ -23,7 +46,9 @@ function CreatingAccountContent() {
 			<div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-white">
 				<div className="text-center space-y-8">
 					<h1 className="text-2xl sm:text-3xl font-bold text-blue-600">
-						Creating your Account
+						{isAuthenticated
+							? 'Account Created Successfully!'
+							: 'Creating your Account'}
 					</h1>
 
 					<div className="flex items-center justify-center">
@@ -33,7 +58,11 @@ function CreatingAccountContent() {
 						</div>
 					</div>
 
-					<p className="text-gray-500">Signing in...</p>
+					<p className="text-gray-500">
+						{isAuthenticated
+							? 'Redirecting to your dashboard...'
+							: 'Setting up your account...'}
+					</p>
 				</div>
 			</div>
 
