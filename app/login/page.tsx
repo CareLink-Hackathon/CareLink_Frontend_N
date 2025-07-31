@@ -14,21 +14,36 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
-import { Facebook, Chrome, Apple } from 'lucide-react';
+import { Facebook, Chrome, Apple, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Login() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [userType, setUserType] = useState('patient');
+	const [credential, setCredential] = useState('');
+	const [password, setPassword] = useState('');
+	const [error, setError] = useState('');
 	const router = useRouter();
+	const { login } = useAuth();
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
+		setError('');
 
-		// Simulate login
-		setTimeout(() => {
-			// Route based on user type
+		// Validate form data
+		if (!credential.trim() || !password.trim()) {
+			setError('Please fill in all fields');
+			setIsLoading(false);
+			return;
+		}
+
+		try {
+			await login(credential, password, userType);
+
+			// Route based on user type after successful login
 			switch (userType) {
 				case 'patient':
 					router.push('/patient/dashboard');
@@ -36,13 +51,18 @@ export default function Login() {
 				case 'doctor':
 					router.push('/doctor/dashboard');
 					break;
+				case 'hospital':
 				case 'admin':
 					router.push('/admin/dashboard');
 					break;
 				default:
 					router.push('/patient/dashboard');
 			}
-		}, 1000);
+		} catch (error: any) {
+			setError(error.message || 'Failed to sign in. Please try again.');
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	return (
@@ -74,6 +94,14 @@ export default function Login() {
 					</div>
 
 					<form onSubmit={handleLogin} className="space-y-4">
+						{/* Error Alert */}
+						{error && (
+							<Alert variant="destructive">
+								<AlertCircle className="h-4 w-4" />
+								<AlertDescription>{error}</AlertDescription>
+							</Alert>
+						)}
+
 						{/* User Type Selection */}
 						<div className="space-y-2">
 							<Label htmlFor="userType">Login As</Label>
@@ -84,19 +112,23 @@ export default function Login() {
 								<SelectContent>
 									<SelectItem value="patient">Patient</SelectItem>
 									<SelectItem value="doctor">Doctor</SelectItem>
-									<SelectItem value="admin">Hospital Administrator</SelectItem>
+									<SelectItem value="hospital">
+										Hospital Administrator
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
+							<Label htmlFor="credential">Email or Phone Number</Label>
 							<Input
-								id="email"
-								type="email"
-								placeholder="ekonnaomie6@gmail.com"
+								id="credential"
+								type="text"
+								placeholder="Enter email or phone number"
 								className="border-gray-300"
-								defaultValue="ekonnaomie6@gmail.com"
+								value={credential}
+								onChange={(e) => setCredential(e.target.value)}
+								required
 							/>
 						</div>
 
@@ -107,6 +139,9 @@ export default function Login() {
 								type="password"
 								placeholder="••••••••"
 								className="border-gray-300"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								required
 							/>
 						</div>
 
