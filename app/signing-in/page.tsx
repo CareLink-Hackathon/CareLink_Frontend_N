@@ -2,32 +2,43 @@
 
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 
 function SigningInContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const userType = searchParams.get('userType') || 'patient';
+	const { user, isAuthenticated } = useAuth();
 
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			// Route to the correct dashboard based on user type
-			switch (userType) {
-				case 'patient':
-					router.push('/patient/dashboard');
-					break;
-				case 'doctor':
-					router.push('/doctor/dashboard');
-					break;
-				case 'admin':
-					router.push('/admin/dashboard');
-					break;
-				default:
-					router.push('/patient/dashboard');
-			}
-		}, 3000);
+		// If user is authenticated, redirect to appropriate dashboard
+		if (isAuthenticated && user) {
+			const timer = setTimeout(() => {
+				switch (user.account_type) {
+					case 'patient':
+						router.push('/patient/dashboard');
+						break;
+					case 'doctor':
+						router.push('/doctor/dashboard');
+						break;
+					case 'hospital':
+						router.push('/admin/dashboard');
+						break;
+					default:
+						router.push('/patient/dashboard');
+				}
+			}, 2000);
 
-		return () => clearTimeout(timer);
-	}, [router, userType]);
+			return () => clearTimeout(timer);
+		} else {
+			// If not authenticated, redirect to login
+			const timer = setTimeout(() => {
+				router.push('/login');
+			}, 3000);
+
+			return () => clearTimeout(timer);
+		}
+	}, [router, userType, user, isAuthenticated]);
 
 	return (
 		<div className="min-h-screen flex flex-col lg:flex-row">
@@ -35,10 +46,12 @@ function SigningInContent() {
 			<div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-white">
 				<div className="text-center space-y-8">
 					<h1 className="text-2xl sm:text-3xl font-bold text-blue-600">
-						Welcome Back
+						{isAuthenticated ? 'Welcome Back!' : 'Signing In'}
 					</h1>
 					<p className="text-sm sm:text-base text-gray-600">
-						We are happy to have you back
+						{isAuthenticated
+							? 'Redirecting to your dashboard...'
+							: 'Please wait while we sign you in'}
 					</p>
 
 					<div className="flex items-center justify-center">
@@ -48,7 +61,9 @@ function SigningInContent() {
 						</div>
 					</div>
 
-					<p className="text-gray-500">Signing in...</p>
+					<p className="text-gray-500">
+						{isAuthenticated ? 'Almost there...' : 'Signing in...'}
+					</p>
 				</div>
 			</div>
 
