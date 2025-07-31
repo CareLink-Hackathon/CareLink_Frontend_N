@@ -175,3 +175,27 @@ export const feedbackAPI = {
 		apiClient.post(`/feedback/${userId}`, data),
 	getFeedbacks: () => apiClient.get('/feedback/'),
 };
+
+// Patient-specific API methods (comprehensive)
+export const patientAPI = {
+	// Chat operations
+	createChat: (userId: string, chatName: string) =>
+		apiClient.post(`/new_chat/${userId}`, { chat_name: chatName }),
+	sendChatMessage: (userId: string, chatId: string, message: string) =>
+		apiClient.post(`/patient/${userId}/chat/${chatId}`, { message }),
+	getChatHistory: (userId: string) => apiClient.get(`/chats/${userId}`),
+
+	// Appointment operations
+	requestAppointment: (userId: string, appointmentData: any) =>
+		apiClient.post(`/patient/appointment/${userId}`, appointmentData),
+	getAppointments: (userId: string) => apiClient.get(`/appointment/${userId}`),
+
+	// Feedback operations
+	submitFeedback: (userId: string, feedbackData: any) =>
+		apiClient.post(`/feedback/${userId}`, feedbackData),
+
+	// User operations (when available)
+	getProfile: (userId: string) => apiClient.get(`/user/${userId}`),
+	updateProfile: (userId: string, data: any) =>
+		apiClient.put(`/user/${userId}`, data),
+};
