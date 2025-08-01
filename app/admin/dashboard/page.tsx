@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashboard-layout';
+import { useAdmin } from '@/lib/contexts/admin-context';
+import { useAuth } from '@/lib/auth-context';
 import {
 	Calendar,
 	Users,
@@ -15,12 +17,55 @@ import {
 	Bell,
 	Settings,
 	HelpCircle,
+	AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function AdminDashboard() {
 	const router = useRouter();
+	const { user } = useAuth();
+	const {
+		dashboardStats,
+		appointments,
+		feedbackAnalytics,
+		unreadNotifications,
+		loading,
+		error,
+		loadDashboardStats,
+		loadAppointments,
+		loadFeedbackAnalytics,
+	} = useAdmin();
+
+	// Load data on component mount
+	useEffect(() => {
+		if (user?.account_type === 'hospital' && (user as any).isAdmin) {
+			loadDashboardStats();
+			loadAppointments();
+			loadFeedbackAnalytics();
+		}
+	}, [user]);
+
+	// Show error state if there's an error
+	if (error) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="text-center">
+					<div className="text-red-500 text-xl mb-4">
+						Error loading admin dashboard
+					</div>
+					<p className="text-gray-600 mb-4">{error}</p>
+					<button
+						onClick={() => window.location.reload()}
+						className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+					>
+						Retry
+					</button>
+				</div>
+			</div>
+		);
+	}
 
 	const sidebarItems = [
 		{
@@ -37,79 +82,73 @@ export default function AdminDashboard() {
 			icon: Bell,
 			label: 'Notifications',
 			href: '/admin/notifications',
-			badge: '5',
+			badge:
+				unreadNotifications > 0 ? unreadNotifications.toString() : undefined,
 		},
 		{ icon: Settings, label: 'Settings', href: '/admin/settings' },
 		{ icon: HelpCircle, label: 'Help Center', href: '/admin/help' },
 	];
 
 	const userInfo = {
-		name: 'ADMIN USER',
-		id: 'Admin ID: A001',
+		name:
+			user?.first_name && user?.last_name
+				? `${user.first_name.toUpperCase()} ${user.last_name.toUpperCase()}`
+				: 'ADMIN USER',
+		id: user?._id ? `Admin ID: ${user._id.slice(-6)}` : 'Admin ID: A001',
 		avatar: '/placeholder.svg?height=64&width=64',
-		fallback: 'AU',
-		role: 'Hospital Administrator',
+		fallback:
+			user?.first_name && user?.last_name
+				? `${user.first_name[0]}${user.last_name[0]}`
+				: 'AU',
+		role: user?.hospital_name
+			? `${user.hospital_name} Administrator`
+			: 'Hospital Administrator',
 	};
 
+	// Use real data from context or fallback to defaults
 	const stats = [
 		{
 			label: 'Total Patients',
-			value: '1,234',
-			change: '+12%',
+			value: dashboardStats?.totalPatients.toString() || '0',
+			change: '+12%', // Would need historical data
 			icon: Users,
 			color: 'text-blue-600',
 		},
 		{
 			label: 'Active Doctors',
-			value: '45',
+			value: dashboardStats?.totalDoctors.toString() || '0',
 			change: '+3%',
 			icon: UserCheck,
 			color: 'text-green-600',
 		},
 		{
 			label: 'Appointments Today',
-			value: '89',
+			value: dashboardStats?.totalAppointments.toString() || '0',
 			change: '+8%',
 			icon: Calendar,
 			color: 'text-purple-600',
 		},
 		{
 			label: 'Pending Reviews',
-			value: '23',
+			value: dashboardStats?.pendingAppointments.toString() || '0',
 			change: '-5%',
 			icon: Clock,
 			color: 'text-orange-600',
 		},
 	];
 
-	const recentAppointments = [
-		{
-			id: 1,
-			patient: 'John Doe',
-			doctor: 'Dr. Sarah Johnson',
-			time: '10:00 AM',
-			status: 'confirmed',
-			type: 'Check-up',
-		},
-		{
-			id: 2,
-			patient: 'Jane Smith',
-			doctor: 'Dr. Michael Chen',
-			time: '11:30 AM',
-			status: 'pending',
-			type: 'Consultation',
-		},
-		{
-			id: 3,
-			patient: 'Bob Wilson',
-			doctor: 'Dr. Emily Davis',
-			time: '2:00 PM',
-			status: 'completed',
-			type: 'Follow-up',
-		},
-	];
+	// Recent appointments from context
+	const recentAppointments = appointments.slice(0, 3).map((apt: any) => ({
+		id: apt._id,
+		patient: apt.patient_name || apt.user_email.split('@')[0],
+		doctor: apt.doctor_name || apt.doctor,
+		time: apt.time,
+		status: apt.status,
+		type: apt.type,
+	}));
 
-	const feedbackCategories = [
+	// Feedback categories from context
+	const feedbackCategories = feedbackAnalytics?.categoryBreakdown || [
 		{ category: 'Wait Time', count: 45, percentage: 35, color: 'bg-red-500' },
 		{
 			category: 'Staff Behavior',
@@ -206,7 +245,7 @@ export default function AdminDashboard() {
 												<AvatarFallback>
 													{appointment.patient
 														.split(' ')
-														.map((n) => n[0])
+														.map((n: string) => n[0])
 														.join('')}
 												</AvatarFallback>
 											</Avatar>
@@ -263,19 +302,29 @@ export default function AdminDashboard() {
 						</CardHeader>
 						<CardContent>
 							<div className="space-y-4">
-								{feedbackCategories.map((item, index) => (
-									<div key={index} className="space-y-2">
-										<div className="flex items-center justify-between">
-											<span className="text-xs sm:text-sm font-medium truncate pr-2">
-												{item.category}
-											</span>
-											<span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">
-												{item.count}
-											</span>
-										</div>
-										<Progress value={item.percentage} className="h-2" />
+								{loading ? (
+									<div className="flex items-center justify-center py-8">
+										<div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
 									</div>
-								))}
+								) : feedbackCategories.length > 0 ? (
+									feedbackCategories.map((item: any, index: number) => (
+										<div key={index} className="space-y-2">
+											<div className="flex items-center justify-between">
+												<span className="text-xs sm:text-sm font-medium truncate pr-2">
+													{item.category}
+												</span>
+												<span className="text-xs sm:text-sm text-gray-600 flex-shrink-0">
+													{item.count}
+												</span>
+											</div>
+											<Progress value={item.percentage} className="h-2" />
+										</div>
+									))
+								) : (
+									<p className="text-center text-gray-500 py-8">
+										No feedback data available
+									</p>
+								)}
 							</div>
 						</CardContent>
 					</Card>
