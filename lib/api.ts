@@ -1,5 +1,6 @@
 // API Configuration
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+export const API_BASE_URL =
+	process.env.NEXT_PUBLIC_API_URL ||
 	'https://carelink-backend-df36bde309e1.herokuapp.com';
 
 // API Client with error handling
@@ -32,32 +33,49 @@ export class ApiClient {
 	): Promise<T> {
 		const url = `${this.baseURL}${endpoint}`;
 
-		// Add auth token if available and not for auth endpoints
-		const headers: HeadersInit = {
+		// Build headers properly
+		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
-			...(options.headers as Record<string, string>),
 		};
 
-		// Add Authorization header for protected routes
-		if (!endpoint.includes('/signup') && !endpoint.includes('/login')) {
+		// Add any passed headers
+		if (options.headers) {
+			Object.assign(headers, options.headers);
+		}
+
+		// Add Authorization header for protected routes (but not for appointment endpoints)
+		if (
+			!endpoint.includes('/signup') &&
+			!endpoint.includes('/login') &&
+			!endpoint.includes('/appointment/')
+		) {
 			const token = this.getAuthToken();
 			if (token) {
-				(headers as Record<string, string>)[
-					'Authorization'
-				] = `Bearer ${token}`;
+				headers['Authorization'] = `Bearer ${token}`;
 			}
 		}
 
 		const config: RequestInit = {
-			headers,
 			...options,
+			headers,
 		};
+
+		// Debug logging
+		console.log('API Request Details:');
+		console.log('URL:', url);
+		console.log('Method:', config.method || 'GET');
+		console.log('Headers:', headers);
+		console.log('Body:', config.body);
 
 		try {
 			const response = await fetch(url, config);
 
+			console.log('Response status:', response.status);
+			console.log('Response headers:', response.headers);
+
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({}));
+				console.log('Error response data:', errorData);
 				throw new ApiError(
 					response.status,
 					errorData.detail || `HTTP ${response.status}: ${response.statusText}`,
@@ -67,6 +85,7 @@ export class ApiClient {
 
 			return await response.json();
 		} catch (error) {
+			console.log('API request error:', error);
 			if (error instanceof ApiError) {
 				throw error;
 			}
@@ -87,9 +106,13 @@ export class ApiClient {
 		data?: any,
 		headers?: Record<string, string>
 	): Promise<T> {
+		console.log('POST data before stringify:', data);
+		const body = data ? JSON.stringify(data) : undefined;
+		console.log('POST body after stringify:', body);
+
 		return this.request<T>(endpoint, {
 			method: 'POST',
-			body: data ? JSON.stringify(data) : undefined,
+			body: body,
 			headers,
 		});
 	}
