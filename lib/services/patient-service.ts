@@ -151,7 +151,7 @@ export class PatientService {
 		if (!data.doctor) errors.push('Doctor selection is required');
 		if (!data.date) errors.push('Date is required');
 		if (!data.time) errors.push('Time is required');
-		if (!data.reason_for_visit) errors.push('Reason for visit is required');
+		// reason_for_visit is optional, so we don't validate it as required
 
 		// Validate date is in the future
 		if (data.date) {
@@ -178,7 +178,7 @@ export class PatientService {
 			errors.push('Feedback message must be at least 10 characters long');
 		}
 
-		if (data.rating && (data.rating < 1 || data.rating > 5)) {
+		if (data.ratings && (data.ratings < 1 || data.ratings > 5)) {
 			errors.push('Rating must be between 1 and 5');
 		}
 
@@ -187,13 +187,35 @@ export class PatientService {
 
 	// Error handling helpers
 	parseApiError(error: any): string {
+		console.log('Full error object:', error);
+		console.log('Error data:', error.data);
+		console.log('Error message:', error.message);
+
+		// Handle ApiError instances from our custom ApiClient
+		if (error.data?.detail) {
+			const detail = error.data.detail;
+			if (Array.isArray(detail)) {
+				return detail
+					.map((d: any) => d.msg || d.message || JSON.stringify(d))
+					.join(', ');
+			}
+			return typeof detail === 'string' ? detail : JSON.stringify(detail);
+		}
+
+		// Handle other error formats
 		if (error.response?.data?.detail) {
 			return error.response.data.detail;
 		}
-		if (error.message) {
+
+		if (error.message && error.message !== '[object Object]') {
 			return error.message;
 		}
-		return 'An unexpected error occurred';
+
+		// Fallback for unknown error structures
+		console.error('Unhandled error structure:', error);
+		return `Server error (${error.status || 'unknown'}): ${JSON.stringify(
+			error.data || {}
+		)}`;
 	}
 
 	// Local storage helpers for offline functionality
