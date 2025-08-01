@@ -76,7 +76,7 @@ export interface AppointmentRequest {
 	doctor: string;
 	date: string;
 	time: string;
-	reason_for_visit: string;
+	reason_for_visit?: string; // Make optional to match backend
 }
 
 export interface Appointment {
@@ -87,7 +87,7 @@ export interface Appointment {
 	doctor: string;
 	date: string;
 	time: string;
-	reason_for_visit: string;
+	reason_for_visit?: string; // Make optional to match backend
 	status: 'pending' | 'scheduled' | 'completed' | 'cancelled';
 	created_at: string;
 	updated_at: string;
