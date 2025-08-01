@@ -1,5 +1,5 @@
 // API Configuration
-export const API_BASE_URL =
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
 	'https://carelink-backend-df36bde309e1.herokuapp.com';
 
 // API Client with error handling
