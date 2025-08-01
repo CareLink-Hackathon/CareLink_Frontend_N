@@ -132,7 +132,22 @@ export default function PatientAppointments() {
 
 		setIsSubmitting(true);
 
-		const success = await requestAppointment(formData as AppointmentRequest);
+		// Clean the form data - omit empty optional fields entirely
+		const cleanedData: Partial<AppointmentRequest> = {
+			type: formData.type,
+			doctor: formData.doctor,
+			date: formData.date,
+			time: formData.time,
+		};
+
+		// Only include reason_for_visit if it has content
+		if (formData.reason_for_visit?.trim()) {
+			cleanedData.reason_for_visit = formData.reason_for_visit.trim();
+		}
+
+		console.log('Sending appointment data:', cleanedData); // Debug logging
+
+		const success = await requestAppointment(cleanedData as AppointmentRequest);
 
 		if (success) {
 			setIsBookingOpen(false);
