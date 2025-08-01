@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashboard-layout';
+import { useDoctor } from '@/lib/contexts/doctor-context';
+import { useAuth } from '@/lib/auth-context';
 import {
 	Calendar,
 	Users,
@@ -16,12 +18,26 @@ import {
 	CheckCircle,
 	User,
 	Stethoscope,
+	AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function DoctorDashboard() {
 	const router = useRouter();
+	const { user } = useAuth();
+	const { state, loadDashboardStats, loadAppointments, loadNotifications } =
+		useDoctor();
+
+	// Load data on component mount
+	useEffect(() => {
+		if (user?.account_type === 'doctor') {
+			loadDashboardStats();
+			loadAppointments();
+			loadNotifications();
+		}
+	}, [user]);
 
 	const sidebarItems = [
 		{
@@ -37,92 +53,61 @@ export default function DoctorDashboard() {
 			icon: Bell,
 			label: 'Notifications',
 			href: '/doctor/notifications',
-			badge: '3',
+			badge:
+				state.unreadNotifications > 0
+					? state.unreadNotifications.toString()
+					: undefined,
 		},
 		{ icon: Settings, label: 'Settings', href: '/doctor/settings' },
 		{ icon: HelpCircle, label: 'Help Center', href: '/doctor/help' },
 	];
 
 	const userInfo = {
-		name: 'DR. SARAH JOHNSON',
-		id: 'Doctor ID: D001',
+		name: state.profile
+			? `DR. ${state.profile.first_name.toUpperCase()} ${state.profile.last_name.toUpperCase()}`
+			: 'Doctor',
+		id: state.profile
+			? `Doctor ID: ${state.profile._id.slice(-6)}`
+			: 'Loading...',
 		avatar: '/placeholder.svg?height=64&width=64',
-		fallback: 'SJ',
-		role: 'Cardiologist',
+		fallback: state.profile
+			? `${state.profile.first_name[0]}${state.profile.last_name[0]}`
+			: 'DR',
+		role: state.profile?.specialization || 'Doctor',
 	};
 
-	const todayStats = {
-		totalAppointments: 12,
-		completed: 8,
-		ongoing: 1,
-		upcoming: 3,
+	// Use real data from context or fallback to defaults
+	const todayStats = state.dashboardStats || {
+		totalAppointments: 0,
+		completedAppointments: 0,
+		ongoingAppointments: 0,
+		upcomingAppointments: 0,
 	};
 
-	const todayAppointments = [
-		{
-			id: 1,
-			patient: 'John Doe',
-			patientId: 'P001',
-			time: '9:00 AM',
-			type: 'Check-up',
-			status: 'completed',
-			duration: '30 min',
-		},
-		{
-			id: 2,
-			patient: 'Jane Smith',
-			patientId: 'P002',
-			time: '10:30 AM',
-			type: 'Consultation',
-			status: 'ongoing',
-			duration: '45 min',
-		},
-		{
-			id: 3,
-			patient: 'Bob Wilson',
-			patientId: 'P003',
-			time: '2:00 PM',
-			type: 'Follow-up',
-			status: 'upcoming',
-			duration: '30 min',
-		},
-		{
-			id: 4,
-			patient: 'Alice Brown',
-			patientId: 'P004',
-			time: '3:30 PM',
-			type: 'Check-up',
-			status: 'upcoming',
-			duration: '30 min',
-		},
-	];
+	// Filter today's appointments
+	const today = new Date().toISOString().split('T')[0];
+	const todayAppointments = state.appointments
+		.filter((apt) => apt.date === today)
+		.slice(0, 4) // Show only first 4
+		.map((apt) => ({
+			id: apt._id,
+			patient: apt.user_email, // We might need patient name from another endpoint
+			patientId: apt.user_id.slice(-6),
+			time: apt.time,
+			type: apt.type,
+			status: apt.status,
+			duration: '30 min', // Default duration
+		}));
 
-	const recentPatients = [
-		{
-			id: 1,
-			name: 'John Doe',
-			age: 45,
-			lastVisit: '2025-01-27',
-			condition: 'Hypertension',
-			status: 'stable',
-		},
-		{
-			id: 2,
-			name: 'Jane Smith',
-			age: 32,
-			lastVisit: '2025-01-26',
-			condition: 'Diabetes',
-			status: 'monitoring',
-		},
-		{
-			id: 3,
-			name: 'Bob Wilson',
-			age: 58,
-			lastVisit: '2025-01-25',
-			condition: 'Heart Disease',
-			status: 'critical',
-		},
-	];
+	// Recent patients would need to be derived from appointments or separate endpoint
+	const recentPatients = state.patients.slice(0, 3).map((patient) => ({
+		id: patient.id,
+		name: patient.name,
+		age: patient.age,
+		lastVisit: patient.lastVisit,
+		condition: patient.conditions[0] || 'General Care',
+		status: patient.status,
+	}));
 
 	return (
 		<ResponsiveDashboardLayout
@@ -132,12 +117,37 @@ export default function DoctorDashboard() {
 		>
 			<div className="mb-6">
 				<h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-					Good morning, Dr. Johnson!
+					Good morning,{' '}
+					{state.profile ? `Dr. ${state.profile.first_name}` : 'Doctor'}!
 				</h1>
 				<p className="text-sm sm:text-base text-gray-600">
-					Here's your schedule for today, January 28, 2025
+					Here's your schedule for today,{' '}
+					{new Date().toLocaleDateString('en-US', {
+						weekday: 'long',
+						year: 'numeric',
+						month: 'long',
+						day: 'numeric',
+					})}
 				</p>
 			</div>
+
+			{/* Loading State */}
+			{state.loading && (
+				<div className="text-center py-8">
+					<div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+					<p className="mt-2 text-gray-600">Loading dashboard...</p>
+				</div>
+			)}
+
+			{/* Error State */}
+			{state.error && (
+				<div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+					<div className="flex items-center">
+						<AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+						<p className="text-red-800">{state.error}</p>
+					</div>
+				</div>
+			)}
 
 			{/* Today's Stats */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
@@ -160,7 +170,7 @@ export default function DoctorDashboard() {
 							<div>
 								<p className="text-sm text-gray-600">Completed</p>
 								<p className="text-lg sm:text-2xl font-bold text-green-600">
-									{todayStats.completed}
+									{todayStats.completedAppointments}
 								</p>
 							</div>
 							<CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
@@ -173,7 +183,7 @@ export default function DoctorDashboard() {
 							<div>
 								<p className="text-sm text-gray-600">Ongoing</p>
 								<p className="text-lg sm:text-2xl font-bold text-orange-600">
-									{todayStats.ongoing}
+									{todayStats.ongoingAppointments}
 								</p>
 							</div>
 							<Clock className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
@@ -186,7 +196,7 @@ export default function DoctorDashboard() {
 							<div>
 								<p className="text-sm text-gray-600">Upcoming</p>
 								<p className="text-lg sm:text-2xl font-bold text-blue-600">
-									{todayStats.upcoming}
+									{todayStats.upcomingAppointments}
 								</p>
 							</div>
 							<Activity className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
@@ -250,15 +260,17 @@ export default function DoctorDashboard() {
 													className={
 														appointment.status === 'completed'
 															? 'bg-green-100 text-green-800'
-															: appointment.status === 'ongoing'
+															: appointment.status === 'scheduled'
 															? 'bg-orange-100 text-orange-800'
 															: 'bg-blue-100 text-blue-800'
 													}
 												>
-													{appointment.status}
+													{appointment.status === 'scheduled'
+														? 'ongoing'
+														: appointment.status}
 												</Badge>
 											</div>
-											{appointment.status === 'ongoing' && (
+											{appointment.status === 'scheduled' && (
 												<Button
 													size="sm"
 													className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto text-xs"
@@ -266,7 +278,7 @@ export default function DoctorDashboard() {
 													Continue
 												</Button>
 											)}
-											{appointment.status === 'upcoming' && (
+											{appointment.status === 'pending' && (
 												<Button
 													size="sm"
 													variant="outline"
@@ -322,12 +334,14 @@ export default function DoctorDashboard() {
 											className={
 												patient.status === 'stable'
 													? 'bg-green-100 text-green-800'
-													: patient.status === 'monitoring'
+													: patient.status === 'active'
 													? 'bg-yellow-100 text-yellow-800'
 													: 'bg-red-100 text-red-800'
 											}
 										>
-											{patient.status}
+											{patient.status === 'active'
+												? 'monitoring'
+												: patient.status}
 										</Badge>
 									</div>
 								))}
