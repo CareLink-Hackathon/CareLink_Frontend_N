@@ -4,6 +4,8 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { AuthProvider } from '@/lib/auth-context';
 import { PatientProvider } from '@/lib/contexts/patient-context';
+import { DoctorProvider } from '@/lib/contexts/doctor-context';
+import { AdminProvider } from '@/lib/contexts/admin-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -30,7 +32,11 @@ html {
 			</head>
 			<body>
 				<AuthProvider>
-					<PatientProvider>{children}</PatientProvider>
+					<PatientProvider>
+						<DoctorProvider>
+							<AdminProvider>{children}</AdminProvider>
+						</DoctorProvider>
+					</PatientProvider>
 				</AuthProvider>
 			</body>
 		</html>
