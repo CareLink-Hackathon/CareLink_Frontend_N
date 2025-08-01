@@ -93,6 +93,7 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
 			setState((prev) => ({ ...prev, isLoading: false }));
 			return result;
 		} catch (error) {
+			console.error('Operation failed with error:', error); // Debug logging
 			const errorMessage = patientService.parseApiError(error);
 			setState((prev) => ({ ...prev, isLoading: false, error: errorMessage }));
 			return null;
