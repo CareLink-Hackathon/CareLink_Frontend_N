@@ -129,3 +129,49 @@ export interface ApiResponse<T> {
 	message?: string;
 	data?: T;
 }
+
+// Blood Bank types
+export interface DonorData {
+	donor_id: string;
+	age: number;
+	sex: 'male' | 'female' | 'other';
+	occupation: string;
+	blood_type: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+	screening_result: 'passed' | 'failed';
+	donation_date: string; // ISO date string
+	expiry_date: string; // ISO date string
+}
+
+export interface ForecastRequest {
+	start_date: string; // YYYY-MM-DD
+	end_date?: string; // YYYY-MM-DD
+	blood_type?: string; // Optional filter for specific blood type
+}
+
+export interface ForecastResponse {
+	donation_date: string;
+	blood_type: string;
+	predicted_count: number;
+}
+
+export interface InventoryStatus {
+	blood_type: string;
+	current_stock: number;
+	expiry_dates: Record<string, number>; // {expiry_date: quantity}
+}
+
+export interface OptimizationRequest {
+	forecast_days?: number; // default 7
+	safety_stock_days?: number; // default 3
+	delivery_cycle_days?: number; // default 7
+	wastage_rate?: number; // default 0.05 (5%)
+	emergency_cost_multiplier?: number; // default 1.5
+}
+
+export interface OptimizationResult {
+	blood_type: string;
+	recommended_order: number;
+	expected_shortage: number;
+	expected_wastage: number;
+	optimal_cost: number;
+}
