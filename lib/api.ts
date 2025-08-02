@@ -199,6 +199,14 @@ export const feedbackAPI = {
 	getFeedbacks: () => apiClient.get('/feedback/'),
 };
 
+// Blood Bank API methods
+export const bloodBankAPI = {
+	ingestDonorData: (data: any) => apiClient.post<{ status: string; message: string }>('/ingest', data),
+	predictDemand: (data: any) => apiClient.post<any[]>('/predict', data),
+	getInventoryStatus: () => apiClient.get<any[]>('/inventory'),
+	optimizeInventory: (data: any) => apiClient.post<any[]>('/optimize', data),
+};
+
 // Patient-specific API methods (comprehensive)
 export const patientAPI = {
 	// Chat operations
