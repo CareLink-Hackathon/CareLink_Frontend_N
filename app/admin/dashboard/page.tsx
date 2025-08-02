@@ -18,6 +18,7 @@ import {
 	Settings,
 	HelpCircle,
 	AlertTriangle,
+	Droplets,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -75,6 +76,7 @@ export default function AdminDashboard() {
 			active: true,
 		},
 		{ icon: Calendar, label: 'Appointments', href: '/admin/appointments' },
+		{ icon: Droplets, label: 'Blood Bank', href: '/admin/blood-bank' },
 		{ icon: Users, label: 'Doctors', href: '/admin/doctors' },
 		{ icon: Users, label: 'Patients', href: '/admin/patients' },
 		{ icon: FileText, label: 'Feedback Analytics', href: '/admin/feedback' },
