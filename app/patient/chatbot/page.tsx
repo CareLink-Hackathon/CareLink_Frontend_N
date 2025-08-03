@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashboard-layout';
 import {
 	Activity,
 	Calendar,
@@ -22,7 +23,6 @@ import {
 	MessageSquare,
 	Send,
 	Plus,
-	Menu,
 	Loader2,
 	AlertCircle,
 	Bot,
@@ -67,7 +67,6 @@ export default function PatientChatbot() {
 
 	const [message, setMessage] = useState('');
 	const [isRecording, setIsRecording] = useState(false);
-	const [showSidebar, setShowSidebar] = useState(false);
 	const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 	const [recordedAudios, setRecordedAudios] = useState<RecordedAudio[]>([]);
 	const [audioLevel, setAudioLevel] = useState(0);
@@ -104,7 +103,12 @@ export default function PatientChatbot() {
 		fallback: `${user.first_name[0]}${user.last_name[0]}`,
 		role: 'Patient',
 		id: user._id,
-	} : null;
+	} : {
+		name: 'Anonymous User',
+		fallback: 'AU',
+		role: 'Patient',
+		id: '',
+	};
 
 	// Auto-scroll to bottom when new messages arrive
 	useEffect(() => {
@@ -296,71 +300,14 @@ export default function PatientChatbot() {
 
 	return (
 		<ProtectedRoute allowedRoles={['patient']}>
-			<div className="flex h-screen bg-gray-50 relative overflow-hidden">
-				{/* Mobile Sidebar Overlay */}
-				{showSidebar && (
-					<div className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden">
-						<div className="absolute left-0 top-0 h-full w-80 bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-2xl transform transition-transform duration-300">
-							<div className="p-6">
-								<div className="flex items-center justify-between mb-8">
-									<div className="flex items-center space-x-3">
-										<div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-											<MessageSquare className="w-6 h-6 text-white" />
-										</div>
-										<div>
-											<h2 className="font-bold text-lg">CareLink</h2>
-											<p className="text-blue-100 text-sm">Healthcare Assistant</p>
-										</div>
-									</div>
-									<Button
-										variant="ghost"
-										size="icon"
-										onClick={() => setShowSidebar(false)}
-										className="text-white hover:bg-white hover:bg-opacity-20"
-									>
-										<X className="w-5 h-5" />
-									</Button>
-								</div>
-
-								<nav className="space-y-2">
-									{sidebarItems.map((item) => (
-										<Button
-											key={item.href}
-											variant="ghost"
-											className="w-full justify-start text-white hover:bg-white hover:bg-opacity-20"
-											onClick={() => {
-												router.push(item.href);
-												setShowSidebar(false);
-											}}
-										>
-											<item.icon className="w-5 h-5 mr-3" />
-											<span className="flex-1">{item.label}</span>
-											{item.badge && (
-												<Badge className="bg-red-500 text-white text-xs">
-													{item.badge}
-												</Badge>
-											)}
-										</Button>
-									))}
-								</nav>
-							</div>
-
-							<div className="absolute bottom-6 left-6 right-6">
-								<Button
-									variant="ghost"
-									className="text-white hover:bg-white hover:bg-opacity-20 w-full justify-start"
-									onClick={() => router.push('/login')}
-								>
-									<LogOut className="w-5 h-5 mr-3" />
-									Sign-out
-								</Button>
-							</div>
-						</div>
-					</div>
-				)}
-
-				{/* Chat Sidebar - Hidden on mobile */}
-				<div className="hidden lg:flex lg:w-72 xl:w-80 bg-white border-r border-gray-200 flex-col">
+			<ResponsiveDashboardLayout
+				userInfo={userInfo}
+				sidebarItems={sidebarItems}
+				showSearch={false}
+			>
+				<div className="flex h-full bg-gray-50">
+					{/* Chat Sidebar */}
+					<div className="hidden lg:flex lg:w-72 xl:w-80 bg-white border-r border-gray-200 flex-col">
 					{/* Header */}
 					<div className="p-4 border-b border-gray-200 bg-gray-50">
 						<div className="flex items-center justify-between">
@@ -382,7 +329,7 @@ export default function PatientChatbot() {
 						<Button 
 							className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
 							onClick={() => {
-								selectChat('');
+								createNewChat('New CareLink Chat');
 								setMessage('');
 							}}
 						>
@@ -441,34 +388,33 @@ export default function PatientChatbot() {
 
 				{/* Main Chat Area */}
 				<div className="flex-1 flex flex-col bg-white min-w-0">
-					{/* Chat Header */}
+					{/* Header */}
 					<div className="p-4 border-b border-gray-200 bg-white shadow-sm">
 						<div className="flex items-center justify-between">
-							<div className="flex items-center space-x-3 min-w-0">
-								<Button
-									variant="ghost"
-									size="icon"
-									className="md:hidden flex-shrink-0"
-									onClick={() => setShowSidebar(true)}
-								>
-									<Menu className="w-5 h-5" />
-								</Button>
-								<div className="flex items-center space-x-3 min-w-0">
-									<div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
-										<MessageSquare className="w-5 h-5 text-white" />
-									</div>
-									<div className="min-w-0">
-										<h2 className="font-semibold text-gray-800 truncate">
-											{currentChat?.chat_name || 'CareLink AI Assistant'}
-										</h2>
-										<div className="flex items-center space-x-1">
-											<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-											<p className="text-sm text-green-600 font-medium">Online</p>
-										</div>
-									</div>
+							<div className="flex items-center space-x-3">
+								<div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+									<Bot className="w-6 h-6 text-white" />
+								</div>
+								<div>
+									<h2 className="font-semibold text-gray-900">CareLink Assistant</h2>
+									<p className="text-sm text-gray-500">Your AI Healthcare Companion</p>
 								</div>
 							</div>
 							<div className="flex items-center space-x-2">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="text-gray-500 hover:bg-gray-100"
+									onClick={() => {
+										createNewChat('New CareLink Chat');
+										setMessage('');
+									}}
+								>
+									<RotateCcw className="w-5 h-5" />
+								</Button>
+							</div>
+						</div>
+					</div>
 								<Button variant="ghost" size="icon">
 									<Settings className="w-4 h-4" />
 								</Button>
@@ -755,7 +701,7 @@ export default function PatientChatbot() {
 						</div>
 					</div>
 				</div>
-			</div>
+			</ResponsiveDashboardLayout>
 		</ProtectedRoute>
 	);
 }
