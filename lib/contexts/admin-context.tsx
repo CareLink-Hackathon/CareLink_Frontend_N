@@ -64,8 +64,26 @@ interface AdminContextType {
 	) => Promise<void>;
 
 	// Doctor actions
+	createDoctor: (doctorData: Partial<Doctor>) => Promise<void>;
 	updateDoctor: (doctorId: string, updates: Partial<Doctor>) => Promise<void>;
+	deleteDoctor: (doctorId: string) => Promise<void>;
 	suspendDoctor: (doctorId: string) => Promise<void>;
+	unsuspendDoctor: (doctorId: string) => Promise<void>;
+
+	// Patient actions
+	updatePatient: (patientId: string, updates: Partial<Patient>) => Promise<void>;
+	deletePatient: (patientId: string) => Promise<void>;
+	suspendPatient: (patientId: string) => Promise<void>;
+	activatePatient: (patientId: string) => Promise<void>;
+
+	// Department actions
+	departments: Array<{_id: string; name: string; description?: string}>;
+	departmentsLoading: boolean;
+	departmentsError: string | null;
+	loadDepartments: () => Promise<void>;
+	createDepartment: (data: {name: string; description?: string}) => Promise<void>;
+	updateDepartment: (departmentId: string, data: {name: string; description?: string}) => Promise<void>;
+	deleteDepartment: (departmentId: string) => Promise<void>;
 
 	// Feedback actions
 	updateFeedbackStatus: (feedbackId: string, status: string) => Promise<void>;
@@ -91,6 +109,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	const [feedbackAnalytics, setFeedbackAnalytics] =
 		useState<FeedbackAnalytics | null>(null);
 	const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+	const [departments, setDepartments] = useState<Array<{_id: string; name: string; description?: string}>>([]);
 
 	// Loading states
 	const [loading, setLoading] = useState(false);
@@ -99,6 +118,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	const [patientsLoading, setPatientsLoading] = useState(false);
 	const [feedbackLoading, setFeedbackLoading] = useState(false);
 	const [notificationsLoading, setNotificationsLoading] = useState(false);
+	const [departmentsLoading, setDepartmentsLoading] = useState(false);
 
 	// Error states
 	const [error, setError] = useState<string | null>(null);
@@ -111,37 +131,67 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	const [notificationsError, setNotificationsError] = useState<string | null>(
 		null
 	);
+	const [departmentsError, setDepartmentsError] = useState<string | null>(null);
 
 	// Computed values
 	const unreadNotifications = notifications.filter((n) => !n.read).length;
 
 	// Action functions
 	const loadDashboardStats = async () => {
-		if (!user?._id || user.account_type !== 'hospital') return;
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		
+		console.log('📊 AdminContext - loadDashboardStats called with user:', {
+			userId: userId,
+			accountType: user?.account_type,
+			role: user?.role,
+			isAdmin: (user as any)?.isAdmin
+		});
+
+		if (!userId || (user.account_type !== 'hospital' && user.role !== 'admin')) {
+			console.log('❌ AdminContext - Skipping dashboard stats load - invalid user or role');
+			return;
+		}
 
 		setLoading(true);
 		setError(null);
 
 		try {
-			const stats = await adminService.getDashboardStats(user._id);
+			console.log('🚀 AdminContext - Calling adminService.getDashboardStats with userId:', userId);
+			const stats = await adminService.getDashboardStats(userId);
+			console.log('✅ AdminContext - Received dashboard stats:', stats);
 			setDashboardStats(stats);
 		} catch (err) {
+			console.error('❌ AdminContext - Error loading dashboard stats:', err);
 			setError(
-				err instanceof Error ? err.message : 'Failed to load dashboard data'
+				err instanceof Error ? err.message : 'Failed to load dashboard stats'
 			);
 		} finally {
 			setLoading(false);
 		}
-	};
-
-	const loadAppointments = async () => {
-		if (!user?._id || user.account_type !== 'hospital') return;
+	};	const loadAppointments = async () => {
+		// Fix: Handle both _id and user_id properties, and check for both hospital and admin roles
+		const userId = user?._id || user?.user_id;
+		const userRole = user?.account_type || user?.role;
+		
+		console.log('📅 AdminContext - loadAppointments called with user:', {
+			userId: userId,
+			userRole: userRole,
+			hasValidRole: userRole === 'hospital' || userRole === 'admin'
+		});
+		
+		if (!userId || (userRole !== 'hospital' && userRole !== 'admin')) {
+			console.log('❌ Skipping appointments load - user check failed');
+			return;
+		}
 
 		setAppointmentsLoading(true);
 		setAppointmentsError(null);
 
 		try {
-			const appointmentsData = await adminService.getAllAppointments(user._id);
+			console.log('📅 Calling adminService.getAllAppointments with userId:', userId);
+			const appointmentsData = await adminService.getAllAppointments(userId);
+			console.log('📅 Appointments data received:', appointmentsData);
 			setAppointments(appointmentsData);
 		} catch (err) {
 			setAppointmentsError(
@@ -153,15 +203,31 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	};
 
 	const loadDoctors = async () => {
-		if (!user?._id || user.account_type !== 'hospital') return;
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		
+		console.log('👨‍⚕️ AdminContext - loadDoctors called with user:', {
+			userId: userId,
+			accountType: user?.account_type,
+			role: user?.role,
+			isAdmin: (user as any)?.isAdmin
+		});
+
+		if (!userId || (user.account_type !== 'hospital' && user.role !== 'admin')) {
+			console.log('❌ AdminContext - Skipping doctors load - invalid user or role');
+			return;
+		}
 
 		setDoctorsLoading(true);
 		setDoctorsError(null);
 
 		try {
-			const doctorsData = await adminService.getDoctors(user._id);
+			console.log('🚀 AdminContext - Calling adminService.getDoctors with userId:', userId);
+			const doctorsData = await adminService.getDoctors(userId);
+			console.log('✅ AdminContext - Received doctors data:', doctorsData);
 			setDoctors(doctorsData);
 		} catch (err) {
+			console.error('❌ AdminContext - Error loading doctors:', err);
 			setDoctorsError(
 				err instanceof Error ? err.message : 'Failed to load doctors'
 			);
@@ -171,15 +237,31 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	};
 
 	const loadPatients = async () => {
-		if (!user?._id || user.account_type !== 'hospital') return;
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		
+		console.log('👥 AdminContext - loadPatients called with user:', {
+			userId: userId,
+			accountType: user?.account_type,
+			role: user?.role,
+			isAdmin: (user as any)?.isAdmin
+		});
+
+		if (!userId || (user.account_type !== 'hospital' && user.role !== 'admin')) {
+			console.log('❌ AdminContext - Skipping patients load - invalid user or role');
+			return;
+		}
 
 		setPatientsLoading(true);
 		setPatientsError(null);
 
 		try {
-			const patientsData = await adminService.getPatients(user._id);
+			console.log('🚀 AdminContext - Calling adminService.getPatients with userId:', userId);
+			const patientsData = await adminService.getPatients(userId);
+			console.log('✅ AdminContext - Received patients data:', patientsData);
 			setPatients(patientsData);
 		} catch (err) {
+			console.error('❌ AdminContext - Error loading patients:', err);
 			setPatientsError(
 				err instanceof Error ? err.message : 'Failed to load patients'
 			);
@@ -189,7 +271,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	};
 
 	const loadFeedbackAnalytics = async () => {
-		if (!user?._id || user.account_type !== 'hospital') return;
+		if (!user?._id || (user.account_type !== 'hospital' && user.role !== 'admin')) return;
 
 		setFeedbackLoading(true);
 		setFeedbackError(null);
@@ -274,10 +356,12 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	};
 
 	const updateDoctor = async (doctorId: string, updates: Partial<Doctor>) => {
-		if (!user?._id) return;
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		if (!userId) return;
 
 		try {
-			await adminService.updateDoctor(doctorId, updates, user._id);
+			await adminService.updateDoctor(doctorId, updates, userId);
 			await loadDoctors();
 		} catch (err) {
 			throw err;
@@ -285,11 +369,148 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 	};
 
 	const suspendDoctor = async (doctorId: string) => {
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		if (!userId) return;
+
+		try {
+			await adminService.suspendDoctor(doctorId, userId);
+			await loadDoctors();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const unsuspendDoctor = async (doctorId: string) => {
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		if (!userId) return;
+
+		try {
+			await adminService.unsuspendDoctor(doctorId, userId);
+			await loadDoctors();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const createDoctor = async (doctorData: Partial<Doctor>) => {
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		if (!userId) return;
+
+		try {
+			await adminService.createDoctor(doctorData, userId);
+			await loadDoctors();
+			await loadDashboardStats();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const deleteDoctor = async (doctorId: string) => {
+		// Fix: Handle both _id and user_id properties
+		const userId = user?._id || user?.user_id;
+		if (!userId) return;
+
+		try {
+			await adminService.deleteDoctor(doctorId, userId);
+			await loadDoctors();
+			await loadDashboardStats();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	// Patient actions
+	const updatePatient = async (patientId: string, updates: Partial<Patient>) => {
 		if (!user?._id) return;
 
 		try {
-			await adminService.suspendDoctor(doctorId, user._id);
-			await loadDoctors();
+			await adminService.updatePatient(patientId, updates, user._id);
+			await loadPatients();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const deletePatient = async (patientId: string) => {
+		if (!user?._id) return;
+
+		try {
+			await adminService.deletePatient(patientId, user._id);
+			await loadPatients();
+			await loadDashboardStats();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const suspendPatient = async (patientId: string) => {
+		if (!user?._id) return;
+
+		try {
+			await adminService.suspendPatient(patientId, user._id);
+			await loadPatients();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const activatePatient = async (patientId: string) => {
+		if (!user?._id) return;
+
+		try {
+			await adminService.activatePatient(patientId, user._id);
+			await loadPatients();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	// Department actions
+	const loadDepartments = async () => {
+		console.log('🏢 AdminContext - loadDepartments called');
+		setDepartmentsLoading(true);
+		setDepartmentsError(null);
+
+		try {
+			console.log('🚀 AdminContext - Calling adminService.getDepartments');
+			const departmentsData = await adminService.getDepartments();
+			console.log('✅ AdminContext - Received departments data:', departmentsData);
+			setDepartments(departmentsData);
+		} catch (err) {
+			console.error('❌ AdminContext - Error loading departments:', err);
+			setDepartmentsError(
+				err instanceof Error ? err.message : 'Failed to load departments'
+			);
+		} finally {
+			setDepartmentsLoading(false);
+		}
+	};
+
+	const createDepartment = async (data: {name: string; description?: string}) => {
+		try {
+			await adminService.createDepartment(data);
+			await loadDepartments();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const updateDepartment = async (departmentId: string, data: {name: string; description?: string}) => {
+		try {
+			await adminService.updateDepartment(departmentId, data);
+			await loadDepartments();
+		} catch (err) {
+			throw err;
+		}
+	};
+
+	const deleteDepartment = async (departmentId: string) => {
+		try {
+			await adminService.deleteDepartment(departmentId);
+			await loadDepartments();
 		} catch (err) {
 			throw err;
 		}
@@ -321,13 +542,25 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
 	// Load data on user change
 	useEffect(() => {
-		if (user && user.account_type === 'hospital' && (user as any).isAdmin) {
+		console.log('🔄 AdminContext - useEffect triggered with user:', {
+			hasUser: !!user,
+			userId: user?._id,
+			accountType: user?.account_type,
+			role: user?.role,
+			isAdmin: (user as any)?.isAdmin
+		});
+
+		if (user && (user.account_type === 'hospital' || user.role === 'admin')) {
+			console.log('✅ AdminContext - Loading all admin data...');
 			loadDashboardStats();
 			loadAppointments();
 			loadDoctors();
 			loadPatients();
 			loadFeedbackAnalytics();
 			loadNotifications();
+			loadDepartments();
+		} else {
+			console.log('❌ AdminContext - Not loading data - user not qualified');
 		}
 	}, [user]);
 
@@ -340,6 +573,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 		feedbackAnalytics,
 		notifications,
 		unreadNotifications,
+		departments,
 
 		// Loading states
 		loading,
@@ -348,6 +582,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 		patientsLoading,
 		feedbackLoading,
 		notificationsLoading,
+		departmentsLoading,
 
 		// Error states
 		error,
@@ -356,6 +591,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 		patientsError,
 		feedbackError,
 		notificationsError,
+		departmentsError,
 
 		// Actions
 		loadDashboardStats,
@@ -371,8 +607,23 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 		updateAppointmentStatus,
 
 		// Doctor actions
+		createDoctor,
 		updateDoctor,
+		deleteDoctor,
 		suspendDoctor,
+		unsuspendDoctor,
+
+		// Patient actions
+		updatePatient,
+		deletePatient,
+		suspendPatient,
+		activatePatient,
+
+		// Department actions
+		loadDepartments,
+		createDepartment,
+		updateDepartment,
+		deleteDepartment,
 
 		// Feedback actions
 		updateFeedbackStatus,

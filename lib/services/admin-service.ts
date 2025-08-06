@@ -1,6 +1,29 @@
 import { ApiClient } from '@/lib/api';
 
-// Types for Admin functionality
+// Types for Admin Dashboard
+export interface Doctor {
+	_id: string;
+	first_name: string;
+	last_name: string;
+	email: string;
+	phone_number: string;
+	specialization: string;
+	license_number?: string;
+	years_of_experience: number;
+	hospital_affiliation?: string;
+	account_type: 'doctor';
+	created_at: string;
+	status: 'active' | 'inactive' | 'suspended';
+	total_appointments: number;
+	rating: number;
+	// Additional fields for creation/editing
+	password?: string;
+	gender?: string;
+	address?: string;
+	department_id?: string;
+	qualification?: string;
+	profile_image_url?: string;
+}
 export interface AdminProfile {
 	_id: string;
 	first_name: string;
@@ -17,11 +40,21 @@ export interface AdminProfile {
 export interface AdminDashboardStats {
 	totalPatients: number;
 	totalDoctors: number;
+	totalDepartments: number;
 	totalAppointments: number;
 	pendingAppointments: number;
 	completedAppointments: number;
+	cancelledAppointments: number;
+	activeDoctors: number;
+	suspendedDoctors: number;
+	activePatients: number;
+	suspendedPatients: number;
+	recentPatients: number;
+	recentDoctors: number;
 	totalFeedback: number;
 	negativeFeedback: number;
+	positiveFeedback: number;
+	neutralFeedback: number;
 	monthlyAppointments: Array<{
 		month: string;
 		count: number;
@@ -50,23 +83,6 @@ export interface AdminAppointment {
 	patient_phone?: string;
 	doctor_name?: string;
 	specialty?: string;
-}
-
-export interface Doctor {
-	_id: string;
-	first_name: string;
-	last_name: string;
-	email: string;
-	phone_number: string;
-	specialization?: string;
-	license_number?: string;
-	years_of_experience?: number;
-	hospital_affiliation?: string;
-	account_type: 'doctor';
-	created_at: string;
-	status: 'active' | 'inactive' | 'suspended';
-	total_appointments?: number;
-	rating?: number;
 }
 
 export interface Patient {
@@ -126,6 +142,77 @@ export interface SystemNotification {
 	relatedId?: string;
 }
 
+// Settings Types
+export interface HospitalSettings {
+	name: string;
+	email: string;
+	phone: string;
+	address: string;
+	website?: string;
+	description?: string;
+	established_year?: string;
+	license_number?: string;
+	accreditation?: string;
+	logo_url?: string;
+}
+
+export interface SystemSettings {
+	timezone: string;
+	date_format: string;
+	time_format: string;
+	language: string;
+	currency: string;
+	maintenance_mode: boolean;
+	allow_registration: boolean;
+	require_email_verification: boolean;
+	session_timeout: number;
+	max_login_attempts: number;
+}
+
+export interface NotificationSettings {
+	email_notifications: boolean;
+	sms_notifications: boolean;
+	push_notifications: boolean;
+	appointment_reminders: boolean;
+	system_alerts: boolean;
+	maintenance_notifications: boolean;
+	emergency_alerts: boolean;
+	weekly_reports: boolean;
+	monthly_reports: boolean;
+}
+
+export interface SecuritySettings {
+	two_factor_auth: boolean;
+	password_min_length: number;
+	password_require_numbers: boolean;
+	password_require_symbols: boolean;
+	password_require_uppercase: boolean;
+	password_expiry: number;
+	login_audit_log: boolean;
+	data_encryption: boolean;
+	backup_frequency: string;
+	backup_retention: number;
+}
+
+export interface AppearanceSettings {
+	primary_color: string;
+	secondary_color: string;
+	theme: string;
+	font_family: string;
+	show_hospital_logo: boolean;
+	show_welcome_message: boolean;
+	enable_animations: boolean;
+	compact_mode: boolean;
+}
+
+export interface AllAdminSettings {
+	hospital: HospitalSettings;
+	system: SystemSettings;
+	notifications: NotificationSettings;
+	security: SecuritySettings;
+	appearance: AppearanceSettings;
+}
+
 class AdminService {
 	private apiClient: ApiClient;
 
@@ -136,28 +223,16 @@ class AdminService {
 	// Dashboard Analytics
 	async getDashboardStats(adminId: string): Promise<AdminDashboardStats> {
 		try {
-			// Get feedback analytics (only available endpoint)
-			const feedback = await this.getFeedbackAnalytics(adminId);
-
-			// For now, we'll use mock data for missing endpoints
-			// These would need to be implemented in the backend
-			const mockStats: AdminDashboardStats = {
-				totalPatients: 0,
-				totalDoctors: 0,
-				totalAppointments: 0,
-				pendingAppointments: 0,
-				completedAppointments: 0,
-				totalFeedback: feedback.totalFeedback || 0,
-				negativeFeedback: feedback.feedbacks.filter(
-					(f) => f.sentiment === 'negative'
-				).length,
-				monthlyAppointments: [],
-				feedbackCategories: feedback.categoryBreakdown || [],
-			};
-
-			return mockStats;
+			console.log('Making dashboard stats request with adminId:', adminId);
+			console.log('Full URL:', `/admin/${adminId}/dashboard-stats`);
+			const response = await this.apiClient.get<AdminDashboardStats>(
+				`/admin/${adminId}/dashboard-stats`
+			);
+			console.log('Dashboard stats response:', response);
+			return response;
 		} catch (error) {
 			console.error('Error fetching dashboard stats:', error);
+			console.error('Error details:', error);
 			throw error;
 		}
 	}
@@ -165,10 +240,10 @@ class AdminService {
 	// Appointment Management
 	async getAllAppointments(adminId: string): Promise<AdminAppointment[]> {
 		try {
-			// Backend doesn't have admin-specific appointment endpoint yet
-			// Return empty array for now - this endpoint needs to be created
-			console.warn('Admin appointments endpoint not implemented in backend');
-			return [];
+			const response = await this.apiClient.get<AdminAppointment[]>(
+				`/admin/${adminId}/appointments`
+			);
+			return response;
 		} catch (error) {
 			console.error('Error fetching appointments:', error);
 			return [];
@@ -216,7 +291,6 @@ class AdminService {
 		adminId: string
 	): Promise<void> {
 		try {
-			// This would need a new backend endpoint
 			await this.apiClient.put(
 				`/admin/${adminId}/appointments/${appointmentId}/status`,
 				{
@@ -232,13 +306,16 @@ class AdminService {
 	// Doctor Management
 	async getDoctors(adminId: string): Promise<Doctor[]> {
 		try {
-			// This would need a new backend endpoint: GET /admin/{admin_id}/doctors
-			const response = await this.apiClient.get<any[]>(
-				`/admin/${adminId}/doctors`
-			);
-			return response.map(this.mapToDoctor);
+			console.log('🚀 AdminService - getDoctors called with adminId:', adminId);
+			console.log('📡 AdminService - Making API request to: /admin/doctors');
+			const response = await this.apiClient.get<any[]>(`/admin/doctors`);
+			console.log('📦 AdminService - Raw doctors response from backend:', response);
+			const mappedDoctors = response.map(this.mapToDoctor);
+			console.log('🔄 AdminService - Mapped doctors:', mappedDoctors);
+			return mappedDoctors;
 		} catch (error) {
-			console.error('Error fetching doctors:', error);
+			console.error('❌ AdminService - Error fetching doctors:', error);
+			console.log('🔧 AdminService - Falling back to mock data');
 			// Return mock data for development
 			return this.getMockDoctors();
 		}
@@ -250,8 +327,20 @@ class AdminService {
 	): Promise<Doctor> {
 		try {
 			const response = await this.apiClient.post<any>(
-				`/admin/${adminId}/doctors`,
-				doctorData
+				`/admin/create-doctor`,
+				{
+					fullName: `${doctorData.first_name} ${doctorData.last_name}`,
+					email: doctorData.email,
+					password: doctorData.password || 'DefaultPassword123',
+					gender: doctorData.gender || 'male',
+					phoneNumber: doctorData.phone_number,
+					address: doctorData.address || '',
+					specialty: doctorData.specialization,
+					departmentId: doctorData.department_id,
+					yearsOfExperience: doctorData.years_of_experience,
+					qualification: doctorData.qualification || '',
+					profileImageUrl: doctorData.profile_image_url
+				}
 			);
 			return this.mapToDoctor(response);
 		} catch (error) {
@@ -266,24 +355,74 @@ class AdminService {
 		adminId: string
 	): Promise<void> {
 		try {
+			console.log('🔄 AdminService - updateDoctor called with:', {
+				doctorId,
+				updates,
+				adminId
+			});
+			
+			const updateData: any = {};
+			
+			// Map frontend fields to backend expected fields
+			if (updates.first_name !== undefined) updateData.first_name = updates.first_name;
+			if (updates.last_name !== undefined) updateData.last_name = updates.last_name;
+			if (updates.email !== undefined) updateData.email = updates.email;
+			if (updates.phone_number !== undefined) updateData.phone_number = updates.phone_number;
+			if (updates.specialization !== undefined) updateData.specialty = updates.specialization;
+			if (updates.department_id !== undefined) updateData.department_id = updates.department_id;
+			if (updates.years_of_experience !== undefined) updateData.years_of_experience = updates.years_of_experience;
+			if (updates.qualification !== undefined) updateData.qualification = updates.qualification;
+			if (updates.gender !== undefined) updateData.gender = updates.gender;
+			if (updates.address !== undefined) updateData.address = updates.address;
+			
+			console.log('📤 AdminService - Sending update data:', updateData);
+			
 			await this.apiClient.put(
 				`/admin/${adminId}/doctors/${doctorId}`,
-				updates
+				updateData
 			);
+			
+			console.log('✅ AdminService - Doctor updated successfully');
 		} catch (error) {
-			console.error('Error updating doctor:', error);
+			console.error('❌ AdminService - Error updating doctor:', error);
 			throw error;
 		}
 	}
 
 	async suspendDoctor(doctorId: string, adminId: string): Promise<void> {
 		try {
+			console.log('⏸️  AdminService - suspendDoctor called with:', {
+				doctorId,
+				adminId
+			});
+			
 			await this.apiClient.put(
 				`/admin/${adminId}/doctors/${doctorId}/suspend`,
 				{}
 			);
+			
+			console.log('✅ AdminService - Doctor suspended successfully');
 		} catch (error) {
-			console.error('Error suspending doctor:', error);
+			console.error('❌ AdminService - Error suspending doctor:', error);
+			throw error;
+		}
+	}
+
+	async unsuspendDoctor(doctorId: string, adminId: string): Promise<void> {
+		try {
+			console.log('▶️  AdminService - unsuspendDoctor called with:', {
+				doctorId,
+				adminId
+			});
+			
+			await this.apiClient.put(
+				`/admin/${adminId}/doctors/${doctorId}/activate`,
+				{}
+			);
+			
+			console.log('✅ AdminService - Doctor unsuspended successfully');
+		} catch (error) {
+			console.error('❌ AdminService - Error unsuspending doctor:', error);
 			throw error;
 		}
 	}
@@ -291,47 +430,193 @@ class AdminService {
 	// Patient Management
 	async getPatients(adminId: string): Promise<Patient[]> {
 		try {
-			// This would need a new backend endpoint: GET /admin/{admin_id}/patients
+			console.log('🚀 AdminService - getPatients called with adminId:', adminId);
+			console.log('📡 AdminService - Making API request to: /admin/' + adminId + '/patients');
 			const response = await this.apiClient.get<any[]>(
 				`/admin/${adminId}/patients`
 			);
-			return response.map(this.mapToPatient);
+			console.log('📦 AdminService - Raw patients response from backend:', response);
+			const mappedPatients = response.map(this.mapToPatient);
+			console.log('🔄 AdminService - Mapped patients:', mappedPatients);
+			return mappedPatients;
 		} catch (error) {
-			console.error('Error fetching patients:', error);
+			console.error('❌ AdminService - Error fetching patients:', error);
+			console.log('🔧 AdminService - Falling back to mock data');
 			// Return mock data for development
 			return this.getMockPatients();
 		}
 	}
 
-	// Feedback Analytics
-	async getFeedbackAnalytics(adminId: string): Promise<FeedbackAnalytics> {
+	async updatePatient(
+		patientId: string,
+		updates: Partial<Patient>,
+		adminId: string
+	): Promise<void> {
 		try {
-			// Using existing endpoint
-			const response = await this.apiClient.get<{
-				top_5_categories: Array<[string, number]>;
-				feedbacks: any[];
-			}>('/feedback/');
-
-			// Calculate additional analytics
-			const totalFeedback = response.feedbacks.length;
-			const sentimentDistribution = this.calculateSentimentDistribution(
-				response.feedbacks
+			await this.apiClient.put(
+				`/admin/${adminId}/patients/${patientId}`,
+				{
+					first_name: updates.first_name,
+					last_name: updates.last_name,
+					email: updates.email,
+					phone_number: updates.phone_number,
+					language: updates.language,
+					date_of_birth: (updates as any).date_of_birth,
+					gender: (updates as any).gender,
+					address: (updates as any).address
+				}
 			);
-			const categoryBreakdown = this.calculateCategoryBreakdown(
-				response.top_5_categories,
-				totalFeedback
-			);
-
-			return {
-				top_5_categories: response.top_5_categories,
-				feedbacks: response.feedbacks.map(this.mapToFeedback),
-				totalFeedback,
-				sentimentDistribution,
-				categoryBreakdown,
-			};
 		} catch (error) {
-			console.error('Error fetching feedback analytics:', error);
+			console.error('Error updating patient:', error);
 			throw error;
+		}
+	}
+
+	async deletePatient(patientId: string, adminId: string): Promise<void> {
+		try {
+			await this.apiClient.delete(`/admin/${adminId}/patients/${patientId}`);
+		} catch (error) {
+			console.error('Error deleting patient:', error);
+			throw error;
+		}
+	}
+
+	async suspendPatient(patientId: string, adminId: string): Promise<void> {
+		try {
+			await this.apiClient.put(
+				`/admin/${adminId}/patients/${patientId}/suspend`,
+				{}
+			);
+		} catch (error) {
+			console.error('Error suspending patient:', error);
+			throw error;
+		}
+	}
+
+	async activatePatient(patientId: string, adminId: string): Promise<void> {
+		try {
+			await this.apiClient.put(
+				`/admin/${adminId}/patients/${patientId}/activate`,
+				{}
+			);
+		} catch (error) {
+			console.error('Error activating patient:', error);
+			throw error;
+		}
+	}
+
+	async deleteDoctor(doctorId: string, adminId: string): Promise<void> {
+		try {
+			await this.apiClient.delete(`/admin/${adminId}/doctors/${doctorId}`);
+		} catch (error) {
+			console.error('Error deleting doctor:', error);
+			throw error;
+		}
+	}
+
+	// Department Management
+	async getDepartments(): Promise<Array<{_id: string; name: string; description?: string}>> {
+		try {
+			console.log('🚀 AdminService - getDepartments called');
+			console.log('📡 AdminService - Making API request to: /admin/departments');
+			const response = await this.apiClient.get<Array<{_id: string; name: string; description?: string}>>(
+				'/admin/departments'
+			);
+			console.log('📦 AdminService - Raw departments response from backend:', response);
+			return response;
+		} catch (error) {
+			console.error('❌ AdminService - Error fetching departments:', error);
+			console.log('🔧 AdminService - Returning empty array as fallback');
+			return [];
+		}
+	}
+
+	async createDepartment(data: {name: string; description?: string}): Promise<any> {
+		try {
+			const response = await this.apiClient.post('/admin/departments', data);
+			return response;
+		} catch (error) {
+			console.error('Error creating department:', error);
+			throw error;
+		}
+	}
+
+	async updateDepartment(departmentId: string, data: {name: string; description?: string}): Promise<any> {
+		try {
+			const response = await this.apiClient.put(`/admin/departments/${departmentId}`, data);
+			return response;
+		} catch (error) {
+			console.error('Error updating department:', error);
+			throw error;
+		}
+	}
+
+	async deleteDepartment(departmentId: string): Promise<void> {
+		try {
+			await this.apiClient.delete(`/admin/departments/${departmentId}`);
+		} catch (error) {
+			console.error('Error deleting department:', error);
+			throw error;
+		}
+	}
+
+	// Feedback Analytics
+	async getFeedbackAnalytics(adminId?: string): Promise<any> {
+		try {
+			console.log('🚀 AdminService.getFeedbackAnalytics - Starting request...');
+			const response = await this.apiClient.get('/admin/feedback-analytics') as any;
+			console.log('✅ AdminService.getFeedbackAnalytics - Raw response:', response);
+			return response;
+		} catch (error) {
+			console.error('❌ AdminService.getFeedbackAnalytics - Error:', error);
+			return {
+				overview: {
+					total_feedback: 0,
+					doctor_feedback_total: 0,
+					general_feedback_total: 0,
+					overall_sentiment: { positive: 0, negative: 0, neutral: 0 },
+					recent_doctor_feedbacks: 0,
+					recent_general_feedbacks: 0
+				},
+				doctor_analytics: {
+					total: 0,
+					average_rating: 0,
+					sentiment_distribution: { positive: 0, negative: 0, neutral: 0 },
+					rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+				},
+				general_analytics: {
+					total: 0,
+					average_rating: 0,
+					sentiment_distribution: { positive: 0, negative: 0, neutral: 0 },
+					rating_distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+					top_categories: []
+				}
+			};
+		}
+	}
+
+	async getAllDoctorFeedbacks(): Promise<any[]> {
+		try {
+			console.log('🚀 AdminService.getAllDoctorFeedbacks - Starting request...');
+			console.log('📡 AdminService - API Base URL:', this.apiClient);
+			const response = await this.apiClient.get('/admin/doctor-feedbacks') as { feedbacks: any[] };
+			console.log('✅ AdminService.getAllDoctorFeedbacks - Raw response:', response);
+			console.log('📦 AdminService.getAllDoctorFeedbacks - Feedbacks array:', response.feedbacks);
+			console.log('📊 AdminService.getAllDoctorFeedbacks - Number of feedbacks:', response.feedbacks?.length || 0);
+			return response.feedbacks || [];
+		} catch (error) {
+			console.error('❌ AdminService.getAllDoctorFeedbacks - Error:', error);
+			return [];
+		}
+	}
+
+	async getGeneralFeedbacks(): Promise<any[]> {
+		try {
+			const response = await this.apiClient.get('/admin/general-feedbacks') as { feedbacks: any[] };
+			return response.feedbacks || [];
+		} catch (error) {
+			console.error('Error fetching general feedbacks:', error);
+			return [];
 		}
 	}
 
@@ -384,10 +669,159 @@ class AdminService {
 		}
 	}
 
+	// Settings Management
+	async getHospitalSettings(adminId: string): Promise<HospitalSettings> {
+		try {
+			const response = await this.apiClient.get<HospitalSettings>(
+				`/admin/${adminId}/settings/hospital`
+			);
+			return response;
+		} catch (error) {
+			console.error('Error fetching hospital settings:', error);
+			throw error;
+		}
+	}
+
+	async updateHospitalSettings(adminId: string, settings: HospitalSettings): Promise<void> {
+		try {
+			await this.apiClient.put(
+				`/admin/${adminId}/settings/hospital`,
+				settings
+			);
+		} catch (error) {
+			console.error('Error updating hospital settings:', error);
+			throw error;
+		}
+	}
+
+	async getSystemSettings(adminId: string): Promise<SystemSettings> {
+		try {
+			const response = await this.apiClient.get<SystemSettings>(
+				`/admin/${adminId}/settings/system`
+			);
+			return response;
+		} catch (error) {
+			console.error('Error fetching system settings:', error);
+			throw error;
+		}
+	}
+
+	async updateSystemSettings(adminId: string, settings: SystemSettings): Promise<void> {
+		try {
+			await this.apiClient.put(
+				`/admin/${adminId}/settings/system`,
+				settings
+			);
+		} catch (error) {
+			console.error('Error updating system settings:', error);
+			throw error;
+		}
+	}
+
+	async getNotificationSettings(adminId: string): Promise<NotificationSettings> {
+		try {
+			const response = await this.apiClient.get<NotificationSettings>(
+				`/admin/${adminId}/settings/notifications`
+			);
+			return response;
+		} catch (error) {
+			console.error('Error fetching notification settings:', error);
+			throw error;
+		}
+	}
+
+	async updateNotificationSettings(adminId: string, settings: NotificationSettings): Promise<void> {
+		try {
+			await this.apiClient.put(
+				`/admin/${adminId}/settings/notifications`,
+				settings
+			);
+		} catch (error) {
+			console.error('Error updating notification settings:', error);
+			throw error;
+		}
+	}
+
+	async getSecuritySettings(adminId: string): Promise<SecuritySettings> {
+		try {
+			const response = await this.apiClient.get<SecuritySettings>(
+				`/admin/${adminId}/settings/security`
+			);
+			return response;
+		} catch (error) {
+			console.error('Error fetching security settings:', error);
+			throw error;
+		}
+	}
+
+	async updateSecuritySettings(adminId: string, settings: SecuritySettings): Promise<void> {
+		try {
+			await this.apiClient.put(
+				`/admin/${adminId}/settings/security`,
+				settings
+			);
+		} catch (error) {
+			console.error('Error updating security settings:', error);
+			throw error;
+		}
+	}
+
+	async getAppearanceSettings(adminId: string): Promise<AppearanceSettings> {
+		try {
+			const response = await this.apiClient.get<AppearanceSettings>(
+				`/admin/${adminId}/settings/appearance`
+			);
+			return response;
+		} catch (error) {
+			console.error('Error fetching appearance settings:', error);
+			throw error;
+		}
+	}
+
+	async updateAppearanceSettings(adminId: string, settings: AppearanceSettings): Promise<void> {
+		try {
+			await this.apiClient.put(
+				`/admin/${adminId}/settings/appearance`,
+				settings
+			);
+		} catch (error) {
+			console.error('Error updating appearance settings:', error);
+			throw error;
+		}
+	}
+
+	async getAllSettings(adminId: string): Promise<AllAdminSettings> {
+		try {
+			const response = await this.apiClient.get<AllAdminSettings>(
+				`/admin/${adminId}/settings/all`
+			);
+			return response;
+		} catch (error) {
+			console.error('Error fetching all settings:', error);
+			throw error;
+		}
+	}
+
+	async uploadHospitalLogo(adminId: string, file: File): Promise<{logo_url: string}> {
+		try {
+			const formData = new FormData();
+			formData.append('file', file);
+			
+			const response = await this.apiClient.postFile<{logo_url: string}>(
+				`/admin/${adminId}/settings/upload-logo`,
+				formData
+			);
+			return response;
+		} catch (error) {
+			console.error('Error uploading hospital logo:', error);
+			throw error;
+		}
+	}
+
 	// Helper methods for data transformation
 	private mapToDoctor(data: any): Doctor {
 		return {
-			_id: data._id || data.id,
+			_id: data.user_id || data._id || data.id,
 			first_name: data.first_name,
 			last_name: data.last_name,
 			email: data.email,
@@ -398,9 +832,15 @@ class AdminService {
 			hospital_affiliation: data.hospital_affiliation || data.hospital_name,
 			account_type: 'doctor',
 			created_at: data.created_at,
-			status: data.status || 'active',
+			status: data.is_active ? 'active' : 'inactive',
 			total_appointments: data.total_appointments || 0,
 			rating: data.rating || 0,
+			// Additional fields from backend
+			gender: data.gender,
+			address: data.address,
+			department_id: data.department_id,
+			qualification: data.qualification,
+			profile_image_url: data.profile_image_url,
 		};
 	}
 
@@ -528,6 +968,63 @@ class AdminService {
 				specialty: 'Cardiology',
 			},
 		];
+	}
+
+	// New methods for dashboard widgets
+	async getRecentAppointments(): Promise<any[]> {
+		try {
+			const response = await this.apiClient.get('/admin/dashboard/recent-appointments') as { appointments: any[] };
+			return response.appointments || [];
+		} catch (error) {
+			console.error('Error fetching recent appointments:', error);
+			return [];
+		}
+	}
+
+	async getRecentFeedbackWithAnalysis(): Promise<{
+		feedback: any[];
+		sentiment_analysis: {
+			total_feedback: number;
+			positive_count: number;
+			negative_count: number;
+			positive_percentage: number;
+			negative_percentage: number;
+		};
+	}> {
+		try {
+			const response = await this.apiClient.get('/admin/dashboard/recent-feedback') as {
+				feedback: any[];
+				sentiment_analysis: {
+					total_feedback: number;
+					positive_count: number;
+					negative_count: number;
+					positive_percentage: number;
+					negative_percentage: number;
+				};
+			};
+			return {
+				feedback: response.feedback || [],
+				sentiment_analysis: response.sentiment_analysis || {
+					total_feedback: 0,
+					positive_count: 0,
+					negative_count: 0,
+					positive_percentage: 0,
+					negative_percentage: 0
+				}
+			};
+		} catch (error) {
+			console.error('Error fetching recent feedback:', error);
+			return {
+				feedback: [],
+				sentiment_analysis: {
+					total_feedback: 0,
+					positive_count: 0,
+					negative_count: 0,
+					positive_percentage: 0,
+					negative_percentage: 0
+				}
+			};
+		}
 	}
 
 	private getMockDoctors(): Doctor[] {

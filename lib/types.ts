@@ -4,11 +4,15 @@
 export interface User {
 	_id: string;
 	account_type: 'patient' | 'doctor' | 'hospital';
+	role?: 'patient' | 'doctor' | 'admin' | 'hospital';
 	first_name: string;
 	last_name: string;
 	email: string;
 	phone_number: string;
 	language: string;
+	token?: string; // JWT token for authentication
+	user_id?: string; // Alternative user ID field
+	redirect_path?: string; // Path to redirect after login
 	isAdmin?: boolean;
 	specialty?: string;
 	hospital_name?: string;
