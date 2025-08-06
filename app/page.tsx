@@ -23,20 +23,21 @@ import { validateEmail, validatePhone, validatePassword } from '@/lib/auth';
 
 export default function CreateAccount() {
 	const [isLoading, setIsLoading] = useState(false);
-	const [userType, setUserType] = useState('patient');
+
 	const [formData, setFormData] = useState({
 		firstName: '',
 		lastName: '',
 		email: '',
 		phone: '',
 		password: '',
-		specialty: '',
-		hospitalName: '',
+		dateOfBirth: '',
+		gender: '',
+		address: '',
 		termsAccepted: false,
 	});
 	const [error, setError] = useState('');
 	const router = useRouter();
-	const { signup } = useAuth();
+	const { signup, refreshUser } = useAuth();
 
 	const handleInputChange = (field: string, value: string | boolean) => {
 		setFormData((prev) => ({
@@ -73,16 +74,6 @@ export default function CreateAccount() {
 			return passwordValidation.message || 'Password is invalid';
 		}
 
-		// Check doctor specialty
-		if (userType === 'doctor' && !formData.specialty) {
-			return 'Please select a medical specialty';
-		}
-
-		// Check hospital name for admin
-		if (userType === 'admin' && !formData.hospitalName.trim()) {
-			return 'Please enter hospital name';
-		}
-
 		// Check terms acceptance
 		if (!formData.termsAccepted) {
 			return 'Please accept the terms and conditions';
@@ -105,23 +96,41 @@ export default function CreateAccount() {
 		}
 
 		try {
-			// Prepare signup data according to backend API
+			// Prepare signup data for patient only (public signup)
 			const signupData = {
-				account_type: userType === 'admin' ? 'hospital' : userType,
 				first_name: formData.firstName,
 				last_name: formData.lastName,
 				email: formData.email,
 				phone_number: formData.phone,
 				password: formData.password,
 				language: 'en',
-				...(userType === 'doctor' && { specialty: formData.specialty }),
-				...(userType === 'admin' && { hospital_name: formData.hospitalName }),
+				date_of_birth: formData.dateOfBirth || null,
+				gender: formData.gender || null,
+				address: formData.address || null,
 			};
 
-			await signup(signupData);
+			const response = await fetch('http://localhost:8000/signup', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(signupData),
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data.detail || 'Failed to create account');
+			}
+
+			// Store token and user data after successful signup using correct localStorage key
+			localStorage.setItem('carelink_user', JSON.stringify(data));
+			
+			// Refresh the auth context to pick up the new user
+			refreshUser();
 
 			// Navigate to success page
-			router.push(`/creating-account?userType=${userType}`);
+			router.push(`/creating-account?userType=patient`);
 		} catch (error: any) {
 			setError(error.message || 'Failed to create account. Please try again.');
 		} finally {
@@ -136,10 +145,10 @@ export default function CreateAccount() {
 				<div className="w-full max-w-md space-y-6">
 					<div className="text-center space-y-2">
 						<h1 className="text-2xl sm:text-3xl font-bold text-blue-600">
-							Create Account
+							Create Patient Account
 						</h1>
 						<p className="text-sm sm:text-base text-gray-600">
-							Fill in your personal information.
+							Join CareLink to access healthcare services.
 						</p>
 					</div>
 
@@ -148,42 +157,28 @@ export default function CreateAccount() {
 						<Button className="flex-1 bg-blue-600 text-white hover:bg-blue-700">
 							Sign Up
 						</Button>
-						<Button
-							variant="ghost"
-							className="flex-1 text-gray-600"
-							onClick={() => router.push('/login')}
-						>
-							Sign In
-						</Button>
+						<Link href="/login" className="flex-1">
+							<Button
+								variant="ghost"
+								className="w-full text-gray-600 hover:text-blue-600"
+							>
+								Log In
+							</Button>
+						</Link>
 					</div>
 
+					{error && (
+						<Alert variant="destructive">
+							<AlertCircle className="h-4 w-4" />
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					)}
+
 					<form onSubmit={handleCreateAccount} className="space-y-4">
-						{/* Error Alert */}
-						{error && (
-							<Alert variant="destructive">
-								<AlertCircle className="h-4 w-4" />
-								<AlertDescription>{error}</AlertDescription>
-							</Alert>
-						)}
-
-						{/* User Type Selection */}
-						<div className="space-y-2">
-							<Label htmlFor="userType">Account Type</Label>
-							<Select value={userType} onValueChange={setUserType}>
-								<SelectTrigger className="border-gray-300">
-									<SelectValue placeholder="Select account type" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="patient">Patient</SelectItem>
-									<SelectItem value="doctor">Doctor</SelectItem>
-									<SelectItem value="admin">Hospital Administrator</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
+						{/* Personal Information */}
 						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
-								<Label htmlFor="firstName">First Name</Label>
+								<Label htmlFor="firstName">First Name *</Label>
 								<Input
 									id="firstName"
 									placeholder="Enter first name"
@@ -196,7 +191,7 @@ export default function CreateAccount() {
 								/>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="lastName">Last Name</Label>
+								<Label htmlFor="lastName">Last Name *</Label>
 								<Input
 									id="lastName"
 									placeholder="Enter last name"
@@ -210,54 +205,21 @@ export default function CreateAccount() {
 							</div>
 						</div>
 
-						{userType === 'doctor' && (
-							<div className="space-y-2">
-								<Label htmlFor="specialty">Medical Specialty</Label>
-								<Select
-									value={formData.specialty}
-									onValueChange={(value) =>
-										handleInputChange('specialty', value)
-									}
-								>
-									<SelectTrigger className="border-gray-300">
-										<SelectValue placeholder="Select specialty" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="cardiology">Cardiology</SelectItem>
-										<SelectItem value="dermatology">Dermatology</SelectItem>
-										<SelectItem value="gynecology">Gynecology</SelectItem>
-										<SelectItem value="pediatrics">Pediatrics</SelectItem>
-										<SelectItem value="orthopedics">Orthopedics</SelectItem>
-										<SelectItem value="neurology">Neurology</SelectItem>
-										<SelectItem value="psychiatry">Psychiatry</SelectItem>
-										<SelectItem value="emergency">
-											Emergency Medicine
-										</SelectItem>
-										<SelectItem value="family">Family Medicine</SelectItem>
-										<SelectItem value="internal">Internal Medicine</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						)}
-
-						{userType === 'admin' && (
-							<div className="space-y-2">
-								<Label htmlFor="hospital">Hospital/Clinic Name</Label>
-								<Input
-									id="hospital"
-									placeholder="Enter hospital name"
-									className="border-gray-300"
-									value={formData.hospitalName}
-									onChange={(e) =>
-										handleInputChange('hospitalName', e.target.value)
-									}
-									required
-								/>
-							</div>
-						)}
+						<div className="space-y-2">
+							<Label htmlFor="email">Email *</Label>
+							<Input
+								id="email"
+								type="email"
+								placeholder="Enter your email"
+								className="border-gray-300"
+								value={formData.email}
+								onChange={(e) => handleInputChange('email', e.target.value)}
+								required
+							/>
+						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="phone">Phone Number</Label>
+							<Label htmlFor="phone">Phone Number *</Label>
 							<div className="flex">
 								<Select defaultValue="cm">
 									<SelectTrigger className="w-20 border-gray-300">
@@ -281,20 +243,7 @@ export default function CreateAccount() {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
-							<Input
-								id="email"
-								type="email"
-								placeholder="Enter email"
-								className="border-gray-300"
-								value={formData.email}
-								onChange={(e) => handleInputChange('email', e.target.value)}
-								required
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="password">Password</Label>
+							<Label htmlFor="password">Password *</Label>
 							<Input
 								id="password"
 								type="password"
@@ -306,24 +255,68 @@ export default function CreateAccount() {
 							/>
 						</div>
 
-						<div className="flex items-start space-x-2">
+						{/* Optional patient fields */}
+						<div className="grid grid-cols-2 gap-4">
+							<div className="space-y-2">
+								<Label htmlFor="dateOfBirth">Date of Birth</Label>
+								<Input
+									id="dateOfBirth"
+									type="date"
+									className="border-gray-300"
+									value={formData.dateOfBirth}
+									onChange={(e) =>
+										handleInputChange('dateOfBirth', e.target.value)
+									}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="gender">Gender</Label>
+								<Select
+									value={formData.gender}
+									onValueChange={(value) => handleInputChange('gender', value)}
+								>
+									<SelectTrigger className="border-gray-300">
+										<SelectValue placeholder="Select gender" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="male">Male</SelectItem>
+										<SelectItem value="female">Female</SelectItem>
+										<SelectItem value="other">Other</SelectItem>
+										<SelectItem value="prefer-not-to-say">
+											Prefer not to say
+										</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="address">Address</Label>
+							<Input
+								id="address"
+								placeholder="Enter your address"
+								className="border-gray-300"
+								value={formData.address}
+								onChange={(e) => handleInputChange('address', e.target.value)}
+							/>
+						</div>
+
+						{/* Terms and Conditions */}
+						<div className="flex items-center space-x-2">
 							<Checkbox
 								id="terms"
 								checked={formData.termsAccepted}
 								onCheckedChange={(checked) =>
-									handleInputChange('termsAccepted', checked as boolean)
+									handleInputChange('termsAccepted', Boolean(checked))
 								}
 							/>
-							<Label
-								htmlFor="terms"
-								className="text-sm text-gray-600 leading-5"
-							>
-								By signing up, you have agreed to our{' '}
-								<Link href="#" className="text-blue-600 hover:underline">
+							<Label htmlFor="terms" className="text-sm text-gray-600">
+								I agree to the{' '}
+								<Link href="/terms" className="text-blue-600 hover:underline">
 									Terms & Conditions
 								</Link>{' '}
 								and{' '}
-								<Link href="#" className="text-blue-600 hover:underline">
+								<Link href="/privacy" className="text-blue-600 hover:underline">
 									Privacy Policy
 								</Link>
 							</Label>
@@ -331,73 +324,92 @@ export default function CreateAccount() {
 
 						<Button
 							type="submit"
-							className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg"
+							className="w-full bg-blue-600 hover:bg-blue-700 text-white"
 							disabled={isLoading}
 						>
 							{isLoading ? 'Creating Account...' : 'Create Account'}
 						</Button>
 					</form>
 
-					<div className="text-center">
-						<p className="text-gray-500 mb-4">or continue with</p>
-						<div className="flex justify-center space-x-4">
-							<Button
-								variant="outline"
-								size="icon"
-								className="rounded-full bg-transparent"
-							>
-								<Facebook className="w-5 h-5 text-blue-600" />
+					{/* Social Login */}
+					<div className="space-y-4">
+						<div className="relative">
+							<div className="absolute inset-0 flex items-center">
+								<span className="w-full border-t border-gray-200" />
+							</div>
+							<div className="relative flex justify-center text-xs">
+								<span className="bg-white px-2 text-gray-500">
+									Or continue with
+								</span>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-3 gap-3">
+							<Button variant="outline" className="border-gray-300">
+								<Facebook className="h-4 w-4" />
 							</Button>
-							<Button
-								variant="outline"
-								size="icon"
-								className="rounded-full bg-transparent"
-							>
-								<Chrome className="w-5 h-5" />
+							<Button variant="outline" className="border-gray-300">
+								<Chrome className="h-4 w-4" />
 							</Button>
-							<Button
-								variant="outline"
-								size="icon"
-								className="rounded-full bg-transparent"
-							>
-								<Apple className="w-5 h-5" />
+							<Button variant="outline" className="border-gray-300">
+								<Apple className="h-4 w-4" />
 							</Button>
 						</div>
+					</div>
+
+					{/* Footer */}
+					<div className="text-center space-y-2">
+						<p className="text-sm text-gray-600">
+							Already have an account?{' '}
+							<Link href="/login" className="text-blue-600 hover:underline">
+								Log in
+							</Link>
+						</p>
+						<p className="text-sm text-gray-600">
+							Are you a hospital administrator?{' '}
+							<Link href="/admin/signup" className="text-blue-600 hover:underline">
+								Admin Sign Up
+							</Link>
+						</p>
 					</div>
 				</div>
 			</div>
 
 			{/* Right Panel - Branding */}
-			<div
-				className="flex-1 bg-gradient-to-br from-blue-400 to-blue-600 flex flex-col justify-between p-4 sm:p-8 text-white relative overflow-hidden min-h-[300px] lg:min-h-screen"
-				style={{
-					backgroundImage: `linear-gradient(rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.8)), url('/images/hospital-bg.png')`,
-					backgroundSize: 'cover',
-					backgroundPosition: 'center',
-				}}
-			>
-				<div className="flex items-center space-x-3">
-					<div className="w-8 h-8 sm:w-12 sm:h-12 bg-white rounded-lg flex items-center justify-center">
-						<div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 rounded-md flex items-center justify-center">
-							<div className="w-3 h-3 sm:w-4 sm:h-4 bg-white rounded-sm"></div>
-						</div>
-					</div>
-					<div>
-						<h2 className="text-xl sm:text-2xl font-bold">CareLink</h2>
-						<p className="text-blue-100 text-sm sm:text-base">
-							Connected Care, Closer to You.
+			<div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-blue-600 to-blue-700 items-center justify-center p-8">
+				<div className="text-center space-y-6 text-white">
+					<div className="space-y-4">
+						<h2 className="text-3xl font-bold">Welcome to CareLink</h2>
+						<p className="text-xl text-blue-100">
+							Your comprehensive healthcare companion
 						</p>
 					</div>
-				</div>
 
-				<div className="text-center space-y-4">
-					<p className="text-xs sm:text-sm">Follow CareLink</p>
-					<div className="flex justify-center space-x-4">
-						<Facebook className="w-5 h-5 sm:w-6 sm:h-6" />
-						<div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-sm"></div>
-						<div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-sm"></div>
-						<div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-sm"></div>
-						<div className="w-5 h-5 sm:w-6 sm:h-6 bg-white rounded-sm"></div>
+					<div className="space-y-4 text-left">
+						<div className="flex items-center space-x-3">
+							<div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+								<span className="text-sm font-bold">✓</span>
+							</div>
+							<span>24/7 AI-powered medical assistance</span>
+						</div>
+						<div className="flex items-center space-x-3">
+							<div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+								<span className="text-sm font-bold">✓</span>
+							</div>
+							<span>Easy appointment booking</span>
+						</div>
+						<div className="flex items-center space-x-3">
+							<div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+								<span className="text-sm font-bold">✓</span>
+							</div>
+							<span>Secure health record management</span>
+						</div>
+						<div className="flex items-center space-x-3">
+							<div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+								<span className="text-sm font-bold">✓</span>
+							</div>
+							<span>Multilingual support</span>
+						</div>
 					</div>
 				</div>
 			</div>

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashboard-layout';
 import { useDoctor } from '@/lib/contexts/doctor-context';
 import { useAuth } from '@/lib/auth-context';
@@ -24,7 +25,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function DoctorDashboard() {
+function DoctorDashboard() {
 	const router = useRouter();
 	const { user } = useAuth();
 	const { state, loadDashboardStats, loadAppointments, loadNotifications } =
@@ -383,5 +384,13 @@ export default function DoctorDashboard() {
 				</div>
 			</div>
 		</ResponsiveDashboardLayout>
+	);
+}
+
+export default function ProtectedDoctorDashboard() {
+	return (
+		<ProtectedRoute allowedRoles={['doctor']}>
+			<DoctorDashboard />
+		</ProtectedRoute>
 	);
 }

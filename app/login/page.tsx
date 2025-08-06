@@ -21,12 +21,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Login() {
 	const [isLoading, setIsLoading] = useState(false);
-	const [userType, setUserType] = useState('patient');
-	const [credential, setCredential] = useState('');
+	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');
 	const router = useRouter();
-	const { login } = useAuth();
+	const { login, refreshUser } = useAuth();
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -34,17 +33,38 @@ export default function Login() {
 		setError('');
 
 		// Validate form data
-		if (!credential.trim() || !password.trim()) {
+		if (!email.trim() || !password.trim()) {
 			setError('Please fill in all fields');
 			setIsLoading(false);
 			return;
 		}
 
 		try {
-			await login(credential, password, userType);
+			const response = await fetch('http://localhost:8000/login', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					credential: email,  // Backend expects 'credential' field
+					password: password,
+				}),
+			});
 
-			// Route based on user type after successful login
-			switch (userType) {
+			const data = await response.json();
+
+			if (!response.ok) {
+				throw new Error(data.detail || 'Login failed');
+			}
+
+			// Store token and user data using the correct localStorage key
+			localStorage.setItem('carelink_user', JSON.stringify(data));
+			
+			// Refresh the auth context to pick up the new user
+			refreshUser();
+
+			// Route based on user role automatically
+			switch (data.role) {
 				case 'patient':
 					router.push('/patient/dashboard');
 					break;
@@ -75,19 +95,20 @@ export default function Login() {
 							Welcome Back
 						</h1>
 						<p className="text-sm sm:text-base text-gray-600">
-							We are happy to have you back
+							Sign in to your CareLink account
 						</p>
 					</div>
 
 					{/* Tab Navigation */}
 					<div className="flex rounded-lg bg-gray-100 p-1">
-						<Button
-							variant="ghost"
-							className="flex-1 text-gray-600"
-							onClick={() => router.push('/')}
-						>
-							Sign Up
-						</Button>
+						<Link href="/" className="flex-1">
+							<Button
+								variant="ghost"
+								className="w-full text-gray-600 hover:text-blue-600"
+							>
+								Sign Up
+							</Button>
+						</Link>
 						<Button className="flex-1 bg-blue-600 text-white hover:bg-blue-700">
 							Sign In
 						</Button>
@@ -102,32 +123,15 @@ export default function Login() {
 							</Alert>
 						)}
 
-						{/* User Type Selection */}
 						<div className="space-y-2">
-							<Label htmlFor="userType">Login As</Label>
-							<Select value={userType} onValueChange={setUserType}>
-								<SelectTrigger className="border-gray-300">
-									<SelectValue placeholder="Select login type" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="patient">Patient</SelectItem>
-									<SelectItem value="doctor">Doctor</SelectItem>
-									<SelectItem value="hospital">
-										Hospital Administrator
-									</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="credential">Email or Phone Number</Label>
+							<Label htmlFor="email">Email</Label>
 							<Input
-								id="credential"
-								type="text"
-								placeholder="Enter email or phone number"
+								id="email"
+								type="email"
+								placeholder="Enter your email"
 								className="border-gray-300"
-								value={credential}
-								onChange={(e) => setCredential(e.target.value)}
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
 								required
 							/>
 						</div>
@@ -185,6 +189,22 @@ export default function Login() {
 								<Apple className="w-5 h-5" />
 							</Button>
 						</div>
+					</div>
+
+					{/* Footer */}
+					<div className="text-center space-y-2">
+						<p className="text-sm text-gray-600">
+							Don't have an account?{' '}
+							<Link href="/" className="text-blue-600 hover:underline">
+								Sign up as Patient
+							</Link>
+						</p>
+						<p className="text-sm text-gray-600">
+							Are you a hospital administrator?{' '}
+							<Link href="/admin/login" className="text-blue-600 hover:underline">
+								Admin Login
+							</Link>
+						</p>
 					</div>
 				</div>
 			</div>

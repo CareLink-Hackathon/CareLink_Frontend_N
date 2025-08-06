@@ -14,7 +14,7 @@ function CreatingAccountContent() {
 		// If user is authenticated, redirect to appropriate dashboard immediately
 		if (isAuthenticated && user) {
 			const timer = setTimeout(() => {
-				switch (user.account_type) {
+				switch (user.role || user.account_type) {
 					case 'patient':
 						router.push('/patient/dashboard');
 						break;
@@ -22,6 +22,7 @@ function CreatingAccountContent() {
 						router.push('/doctor/dashboard');
 						break;
 					case 'hospital':
+					case 'admin':
 						router.push('/admin/dashboard');
 						break;
 					default:
