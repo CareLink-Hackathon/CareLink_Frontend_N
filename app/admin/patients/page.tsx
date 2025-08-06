@@ -1,18 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashboard-layout';
+import { useAdmin } from '@/lib/contexts/admin-context';
+import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -23,1277 +19,613 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
 import {
-	Search,
-	Bell,
-	Settings,
-	HelpCircle,
-	LogOut,
-	Calendar,
-	Users,
-	Activity,
-	FileText,
-	Filter,
-	Plus,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+	MoreHorizontal,
 	Edit,
 	Trash2,
-	Eye,
-	Mail,
+	Search,
+	UserPlus,
+	UserCheck,
+	Calendar,
+	Users,
 	Phone,
+	Mail,
 	MapPin,
-	User,
-	Heart,
 	Clock,
-	CalendarDays,
-	Stethoscope,
-	Droplets,
 } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { getAdminSidebarItems, getAdminUserInfo } from '@/lib/utils/admin-layout';
+import { toast } from '@/hooks/use-toast';
+import type { Patient } from '@/lib/services/admin-service';
 
-export default function AdminPatients() {
-	const router = useRouter();
-	const [selectedPatient, setSelectedPatient] = useState<any>(null);
-	const [isCreateOpen, setIsCreateOpen] = useState(false);
-	const [isEditOpen, setIsEditOpen] = useState(false);
-	const [isViewOpen, setIsViewOpen] = useState(false);
+function PatientsPage() {
+	const { user } = useAuth();
+	const {
+		patients,
+		patientsLoading,
+		patientsError,
+		loadPatients,
+		updatePatient,
+		deletePatient,
+		suspendPatient,
+		activatePatient,
+		unreadNotifications,
+	} = useAdmin();
+
+	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+	const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 	const [searchTerm, setSearchTerm] = useState('');
-	const [filterStatus, setFilterStatus] = useState('all');
-	const [isLoading, setIsLoading] = useState(false);
-
-	const sidebarItems = [
-		{ icon: Activity, label: 'Dashboard', href: '/admin/dashboard' },
-		{ icon: Calendar, label: 'Appointments', href: '/admin/appointments' },
-		{ icon: Droplets, label: 'Blood Bank', href: '/admin/blood-bank' },
-		{ icon: Users, label: 'Doctors', href: '/admin/doctors' },
-		{ icon: Users, label: 'Patients', href: '/admin/patients', active: true },
-		{ icon: FileText, label: 'Feedback Analytics', href: '/admin/feedback' },
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/admin/notifications',
-			badge: '5',
-		},
-		{ icon: Settings, label: 'Settings', href: '/admin/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/admin/help' },
-	];
-
-	const [patients, setPatients] = useState([
-		{
-			id: 'P001',
-			firstName: 'John',
-			lastName: 'Doe',
-			email: 'john.doe@email.com',
-			phone: '+1 (555) 123-4567',
-			dateOfBirth: '1985-03-15',
-			gender: 'Male',
-			address: '123 Main St, City, State 12345',
-			emergencyContact: '+1 (555) 987-6543',
-			emergencyContactName: 'Jane Doe',
-			emergencyContactRelation: 'Spouse',
-			bloodType: 'O+',
-			allergies: 'Penicillin, Peanuts',
-			medicalHistory: 'Hypertension, Type 2 Diabetes',
-			status: 'active',
-			assignedDoctor: 'Dr. Sarah Johnson',
-			doctorId: 'D001',
-			registrationDate: '2023-01-15',
-			lastVisit: '2025-01-20',
-			totalAppointments: 12,
-			condition: 'Stable',
-		},
-		{
-			id: 'P002',
-			firstName: 'Jane',
-			lastName: 'Smith',
-			email: 'jane.smith@email.com',
-			phone: '+1 (555) 234-5678',
-			dateOfBirth: '1990-07-22',
-			gender: 'Female',
-			address: '456 Oak Ave, City, State 12345',
-			emergencyContact: '+1 (555) 876-5432',
-			emergencyContactName: 'Robert Smith',
-			emergencyContactRelation: 'Brother',
-			bloodType: 'A-',
-			allergies: 'None',
-			medicalHistory: 'Asthma',
-			status: 'active',
-			assignedDoctor: 'Dr. Michael Chen',
-			doctorId: 'D002',
-			registrationDate: '2023-05-20',
-			lastVisit: '2025-01-18',
-			totalAppointments: 8,
-			condition: 'Monitoring',
-		},
-		{
-			id: 'P003',
-			firstName: 'Bob',
-			lastName: 'Wilson',
-			email: 'bob.wilson@email.com',
-			phone: '+1 (555) 345-6789',
-			dateOfBirth: '1978-11-08',
-			gender: 'Male',
-			address: '789 Pine St, City, State 12345',
-			emergencyContact: '+1 (555) 765-4321',
-			emergencyContactName: 'Mary Wilson',
-			emergencyContactRelation: 'Wife',
-			bloodType: 'B+',
-			allergies: 'Shellfish',
-			medicalHistory: 'Heart Disease, High Cholesterol',
-			status: 'critical',
-			assignedDoctor: 'Dr. Emily Davis',
-			doctorId: 'D003',
-			registrationDate: '2022-12-10',
-			lastVisit: '2025-01-25',
-			totalAppointments: 25,
-			condition: 'Critical',
-		},
-		{
-			id: 'P004',
-			firstName: 'Alice',
-			lastName: 'Brown',
-			email: 'alice.brown@email.com',
-			phone: '+1 (555) 456-7890',
-			dateOfBirth: '1995-02-14',
-			gender: 'Female',
-			address: '321 Elm Dr, City, State 12345',
-			emergencyContact: '+1 (555) 654-3210',
-			emergencyContactName: 'Carol Brown',
-			emergencyContactRelation: 'Mother',
-			bloodType: 'AB+',
-			allergies: 'Latex',
-			medicalHistory: 'None',
-			status: 'inactive',
-			assignedDoctor: 'Dr. Robert Kim',
-			doctorId: 'D004',
-			registrationDate: '2024-08-05',
-			lastVisit: '2024-12-15',
-			totalAppointments: 3,
-			condition: 'Healthy',
-		},
-	]);
-
-	const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-	const genders = ['Male', 'Female', 'Other', 'Prefer not to say'];
-	const statusOptions = ['active', 'inactive', 'critical'];
-
-	const doctors = [
-		{ id: 'D001', name: 'Dr. Sarah Johnson', specialty: 'Cardiology' },
-		{ id: 'D002', name: 'Dr. Michael Chen', specialty: 'Dermatology' },
-		{ id: 'D003', name: 'Dr. Emily Davis', specialty: 'Gynecology' },
-		{ id: 'D004', name: 'Dr. Robert Kim', specialty: 'Pediatrics' },
-	];
-
+	const [statusFilter, setStatusFilter] = useState('all');
+	const [languageFilter, setLanguageFilter] = useState('all');
+	
 	const [formData, setFormData] = useState({
-		firstName: '',
-		lastName: '',
+		first_name: '',
+		last_name: '',
 		email: '',
-		phone: '',
-		dateOfBirth: '',
+		phone_number: '',
+		language: 'en',
+		date_of_birth: '',
 		gender: '',
 		address: '',
-		emergencyContact: '',
-		emergencyContactName: '',
-		emergencyContactRelation: '',
-		bloodType: '',
-		allergies: '',
-		medicalHistory: '',
-		assignedDoctor: '',
-		doctorId: '',
 	});
 
-	const filteredPatients = patients.filter((patient) => {
-		const matchesSearch =
-			patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			patient.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			patient.id.toLowerCase().includes(searchTerm.toLowerCase());
+	useEffect(() => {
+		console.log('👥 PatientsPage - useEffect triggered with user:', {
+			hasUser: !!user,
+			userId: user?._id,
+			accountType: user?.account_type,
+			role: user?.role,
+			isAdmin: (user as any)?.isAdmin,
+			currentPath: window.location.pathname
+		});
 
-		const matchesStatus =
-			filterStatus === 'all' || patient.status === filterStatus;
+		if (user && (user.account_type === 'hospital' || user.role === 'admin')) {
+			console.log('✅ PatientsPage - Loading patients...');
+			loadPatients();
+		} else {
+			console.log('❌ PatientsPage - Not loading data - user not qualified');
+		}
+	}, [user]);
 
-		return matchesSearch && matchesStatus;
-	});
+	const sidebarItems = getAdminSidebarItems('patients');
 
-	const handleCreate = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setIsLoading(true);
+	const userInfo = getAdminUserInfo(user);
 
-		// Simulate API call
-		setTimeout(() => {
-			const selectedDoctor = doctors.find((d) => d.id === formData.doctorId);
-			const newPatient = {
-				id: `P${String(patients.length + 1).padStart(3, '0')}`,
-				...formData,
-				assignedDoctor: selectedDoctor?.name || '',
-				status: 'active',
-				registrationDate: new Date().toISOString().split('T')[0],
-				lastVisit: '',
-				totalAppointments: 0,
-				condition: 'Healthy',
-			};
+	const resetForm = () => {
+		setFormData({
+			first_name: '',
+			last_name: '',
+			email: '',
+			phone_number: '',
+			language: 'en',
+			date_of_birth: '',
+			gender: '',
+			address: '',
+		});
+		setSelectedPatient(null);
+	};
 
-			setPatients([...patients, newPatient]);
-			setFormData({
-				firstName: '',
-				lastName: '',
-				email: '',
-				phone: '',
-				dateOfBirth: '',
-				gender: '',
-				address: '',
-				emergencyContact: '',
-				emergencyContactName: '',
-				emergencyContactRelation: '',
-				bloodType: '',
-				allergies: '',
-				medicalHistory: '',
-				assignedDoctor: '',
-				doctorId: '',
+	const handleUpdatePatient = async () => {
+		if (!selectedPatient) return;
+		
+		try {
+			await updatePatient(selectedPatient._id, formData);
+			setIsEditDialogOpen(false);
+			resetForm();
+			toast({
+				title: 'Success',
+				description: 'Patient updated successfully',
 			});
-			setIsCreateOpen(false);
-			setIsLoading(false);
-		}, 1000);
+		} catch (error) {
+			toast({
+				title: 'Error',
+				description: error instanceof Error ? error.message : 'Failed to update patient',
+				variant: 'destructive',
+			});
+		}
 	};
 
-	const handleEdit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setIsLoading(true);
+	const handleDeletePatient = async (patientId: string, patientName: string) => {
+		if (!confirm(`Are you sure you want to delete "${patientName}"? This action cannot be undone.`)) {
+			return;
+		}
 
-		// Simulate API call
-		setTimeout(() => {
-			const selectedDoctor = doctors.find((d) => d.id === formData.doctorId);
-			setPatients(
-				patients.map((patient) =>
-					patient.id === selectedPatient.id
-						? {
-								...patient,
-								...formData,
-								assignedDoctor: selectedDoctor?.name || '',
-						  }
-						: patient
-				)
-			);
-			setIsEditOpen(false);
-			setIsLoading(false);
-		}, 1000);
+		try {
+			await deletePatient(patientId);
+			toast({
+				title: 'Success',
+				description: 'Patient deleted successfully',
+			});
+		} catch (error) {
+			toast({
+				title: 'Error',
+				description: error instanceof Error ? error.message : 'Failed to delete patient',
+				variant: 'destructive',
+			});
+		}
 	};
 
-	const handleDelete = async (patientId: string) => {
-		setIsLoading(true);
+	const handleSuspendPatient = async (patientId: string, patientName: string) => {
+		if (!confirm(`Are you sure you want to suspend "${patientName}"?`)) {
+			return;
+		}
 
-		// Simulate API call
-		setTimeout(() => {
-			setPatients(patients.filter((patient) => patient.id !== patientId));
-			setIsLoading(false);
-		}, 1000);
+		try {
+			await suspendPatient(patientId);
+			toast({
+				title: 'Success',
+				description: 'Patient suspended successfully',
+			});
+		} catch (error) {
+			toast({
+				title: 'Error',
+				description: error instanceof Error ? error.message : 'Failed to suspend patient',
+				variant: 'destructive',
+			});
+		}
 	};
 
-	const openEditDialog = (patient: any) => {
+	const handleActivatePatient = async (patientId: string, patientName: string) => {
+		try {
+			await activatePatient(patientId);
+			toast({
+				title: 'Success',
+				description: 'Patient activated successfully',
+			});
+		} catch (error) {
+			toast({
+				title: 'Error',
+				description: error instanceof Error ? error.message : 'Failed to activate patient',
+				variant: 'destructive',
+			});
+		}
+	};
+
+	const openEditDialog = (patient: Patient) => {
 		setSelectedPatient(patient);
 		setFormData({
-			firstName: patient.firstName,
-			lastName: patient.lastName,
+			first_name: patient.first_name,
+			last_name: patient.last_name,
 			email: patient.email,
-			phone: patient.phone,
-			dateOfBirth: patient.dateOfBirth,
-			gender: patient.gender,
-			address: patient.address,
-			emergencyContact: patient.emergencyContact,
-			emergencyContactName: patient.emergencyContactName,
-			emergencyContactRelation: patient.emergencyContactRelation,
-			bloodType: patient.bloodType,
-			allergies: patient.allergies,
-			medicalHistory: patient.medicalHistory,
-			assignedDoctor: patient.assignedDoctor,
-			doctorId: patient.doctorId,
+			phone_number: patient.phone_number,
+			language: patient.language,
+			date_of_birth: (patient as any).date_of_birth || '',
+			gender: (patient as any).gender || '',
+			address: (patient as any).address || '',
 		});
-		setIsEditOpen(true);
+		setIsEditDialogOpen(true);
 	};
 
-	const openViewDialog = (patient: any) => {
-		setSelectedPatient(patient);
-		setIsViewOpen(true);
+	// Filter patients based on search and filters
+	const filteredPatients = patients.filter((patient) => {
+		const matchesSearch = 
+			`${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+			patient.phone_number.includes(searchTerm);
+		
+		const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
+		
+		const matchesLanguage = languageFilter === 'all' || patient.language === languageFilter;
+		
+		return matchesSearch && matchesStatus && matchesLanguage;
+	});
+
+	// Get unique languages for filter
+	const availableLanguages = [...new Set(patients.map(p => p.language))];
+
+	const formatDate = (dateString: string | undefined) => {
+		if (!dateString) return 'N/A';
+		return new Date(dateString).toLocaleDateString();
 	};
 
-	const calculateAge = (dateOfBirth: string) => {
-		const today = new Date();
-		const birth = new Date(dateOfBirth);
-		let age = today.getFullYear() - birth.getFullYear();
-		const monthDiff = today.getMonth() - birth.getMonth();
-		if (
-			monthDiff < 0 ||
-			(monthDiff === 0 && today.getDate() < birth.getDate())
-		) {
-			age--;
-		}
-		return age;
-	};
-
-	return (
-		<div className="flex h-screen bg-gray-50">
-			{/* Sidebar */}
-			<div className="w-64 bg-gradient-to-b from-blue-600 to-blue-700 text-white hidden md:block">
-				<div className="p-6">
-					<div className="flex items-center space-x-3 mb-8">
-						<div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-							<div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
-								<div className="w-4 h-4 bg-white rounded-sm"></div>
-							</div>
-						</div>
-						<div>
-							<h2 className="text-xl font-bold">CareLink</h2>
-							<p className="text-blue-100 text-sm">Admin Portal</p>
-						</div>
-					</div>
-
-					<nav className="space-y-2">
-						{sidebarItems.map((item) => (
-							<Link
-								key={item.label}
-								href={item.href}
-								className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-									item.active
-										? 'bg-white text-blue-600'
-										: 'text-white hover:bg-blue-500'
-								}`}
-							>
-								<item.icon className="w-5 h-5" />
-								<span className="flex-1">{item.label}</span>
-								{item.badge && (
-									<Badge className="bg-red-500 text-white text-xs">
-										{item.badge}
-									</Badge>
-								)}
-							</Link>
-						))}
-					</nav>
-				</div>
-
-				<div className="absolute bottom-6 left-6">
-					<Button
-						variant="ghost"
-						className="text-white hover:bg-blue-500 w-full justify-start"
-						onClick={() => router.push('/login')}
-					>
-						<LogOut className="w-5 h-5 mr-3" />
-						Sign-out
-					</Button>
+	if (patientsLoading) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="text-center">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+					<p className="text-gray-600">Loading patients...</p>
 				</div>
 			</div>
+		);
+	}
 
-			{/* Main Content */}
-			<div className="flex-1 flex flex-col">
-				{/* Header */}
-				<header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center space-x-4">
-							<div className="relative">
-								<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-								<Input
-									placeholder="Search patients..."
-									className="pl-10 w-64 md:w-96 border-gray-300"
-									value={searchTerm}
-									onChange={(e) => setSearchTerm(e.target.value)}
-								/>
-							</div>
-						</div>
+	if (patientsError) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="text-center">
+					<div className="text-red-500 text-xl mb-4">Error loading patients</div>
+					<p className="text-gray-600 mb-4">{patientsError}</p>
+					<Button onClick={() => loadPatients()}>Retry</Button>
+				</div>
+			</div>
+		);
+	}
 
-						<div className="flex items-center space-x-4">
-							<Button variant="ghost" size="icon" className="md:hidden">
-								<Settings className="w-5 h-5" />
-							</Button>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="relative hidden md:flex"
-							>
-								<Bell className="w-5 h-5" />
-								<div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
-							</Button>
-						</div>
-					</div>
-				</header>
-
-				{/* Patients Content */}
-				<div className="flex-1 p-4 md:p-6 overflow-y-auto">
-					<div className="flex flex-col md:flex-row md:items-center justify-between mb-6 space-y-4 md:space-y-0">
+	return (
+		<ProtectedRoute allowedRoles={['hospital', 'admin']}>
+			<ResponsiveDashboardLayout sidebarItems={sidebarItems} userInfo={userInfo}>
+				<div className="space-y-8">
+					{/* Header Section */}
+					<div className="flex justify-between items-center">
 						<div>
-							<h1 className="text-2xl font-bold text-gray-900">
-								Patient Management
-							</h1>
-							<p className="text-gray-600">
-								Manage hospital patients and their information
+							<h1 className="text-3xl font-bold text-gray-900">Patient Management</h1>
+							<p className="text-gray-600 mt-2">
+								Manage registered patients and their information
 							</p>
 						</div>
+					</div>
 
-						<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-							<DialogTrigger asChild>
-								<Button className="bg-blue-600 hover:bg-blue-700 text-white">
-									<Plus className="w-4 h-4 mr-2" />
-									Add Patient
-								</Button>
-							</DialogTrigger>
-							<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-								<DialogHeader>
-									<DialogTitle>Add New Patient</DialogTitle>
-								</DialogHeader>
-								<form onSubmit={handleCreate} className="space-y-6">
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="firstName">First Name</Label>
-											<Input
-												id="firstName"
-												value={formData.firstName}
-												onChange={(e) =>
-													setFormData({
-														...formData,
-														firstName: e.target.value,
-													})
-												}
-												required
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="lastName">Last Name</Label>
-											<Input
-												id="lastName"
-												value={formData.lastName}
-												onChange={(e) =>
-													setFormData({ ...formData, lastName: e.target.value })
-												}
-												required
-											/>
-										</div>
-									</div>
+					{/* Stats Cards */}
+					<div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="text-sm font-medium">Total Patients</CardTitle>
+								<UserPlus className="h-4 w-4 text-muted-foreground" />
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">{patients.length}</div>
+								<p className="text-xs text-muted-foreground">
+									Registered patients
+								</p>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="text-sm font-medium">Active</CardTitle>
+								<UserCheck className="h-4 w-4 text-muted-foreground" />
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{patients.filter(p => p.status === 'active').length}
+								</div>
+								<p className="text-xs text-muted-foreground">
+									Currently active
+								</p>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="text-sm font-medium">Total Appointments</CardTitle>
+								<Calendar className="h-4 w-4 text-muted-foreground" />
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{patients.reduce((sum, p) => sum + (p.total_appointments || 0), 0)}
+								</div>
+								<p className="text-xs text-muted-foreground">
+									All-time appointments
+								</p>
+							</CardContent>
+						</Card>
+						<Card>
+							<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+								<CardTitle className="text-sm font-medium">Recent Signups</CardTitle>
+								<Clock className="h-4 w-4 text-muted-foreground" />
+							</CardHeader>
+							<CardContent>
+								<div className="text-2xl font-bold">
+									{patients.filter(p => {
+										const createdAt = new Date(p.created_at);
+										const weekAgo = new Date();
+										weekAgo.setDate(weekAgo.getDate() - 7);
+										return createdAt > weekAgo;
+									}).length}
+								</div>
+								<p className="text-xs text-muted-foreground">
+									This week
+								</p>
+							</CardContent>
+						</Card>
+					</div>
 
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="email">Email</Label>
-											<Input
-												id="email"
-												type="email"
-												value={formData.email}
-												onChange={(e) =>
-													setFormData({ ...formData, email: e.target.value })
-												}
-												required
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="phone">Phone</Label>
-											<Input
-												id="phone"
-												value={formData.phone}
-												onChange={(e) =>
-													setFormData({ ...formData, phone: e.target.value })
-												}
-												required
-											/>
-										</div>
-									</div>
-
-									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="dateOfBirth">Date of Birth</Label>
-											<Input
-												id="dateOfBirth"
-												type="date"
-												value={formData.dateOfBirth}
-												onChange={(e) =>
-													setFormData({
-														...formData,
-														dateOfBirth: e.target.value,
-													})
-												}
-												required
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="gender">Gender</Label>
-											<Select
-												value={formData.gender}
-												onValueChange={(value) =>
-													setFormData({ ...formData, gender: value })
-												}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Select gender" />
-												</SelectTrigger>
-												<SelectContent>
-													{genders.map((gender) => (
-														<SelectItem key={gender} value={gender}>
-															{gender}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="bloodType">Blood Type</Label>
-											<Select
-												value={formData.bloodType}
-												onValueChange={(value) =>
-													setFormData({ ...formData, bloodType: value })
-												}
-											>
-												<SelectTrigger>
-													<SelectValue placeholder="Select blood type" />
-												</SelectTrigger>
-												<SelectContent>
-													{bloodTypes.map((type) => (
-														<SelectItem key={type} value={type}>
-															{type}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="address">Address</Label>
+					{/* Filters and Search */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Search and Filter</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className="flex flex-col md:flex-row gap-4">
+								<div className="flex-1">
+									<div className="relative">
+										<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
 										<Input
-											id="address"
-											value={formData.address}
-											onChange={(e) =>
-												setFormData({ ...formData, address: e.target.value })
-											}
-											required
+											placeholder="Search patients..."
+											value={searchTerm}
+											onChange={(e) => setSearchTerm(e.target.value)}
+											className="pl-10"
 										/>
 									</div>
+								</div>
+								<Select value={statusFilter} onValueChange={setStatusFilter}>
+									<SelectTrigger className="w-48">
+										<SelectValue placeholder="Filter by status" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">All Status</SelectItem>
+										<SelectItem value="active">Active</SelectItem>
+										<SelectItem value="inactive">Inactive</SelectItem>
+									</SelectContent>
+								</Select>
+								<Select value={languageFilter} onValueChange={setLanguageFilter}>
+									<SelectTrigger className="w-48">
+										<SelectValue placeholder="Filter by language" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">All Languages</SelectItem>
+										{availableLanguages.map((lang) => (
+											<SelectItem key={lang} value={lang}>
+												{lang === 'en' ? 'English' : 
+												 lang === 'es' ? 'Spanish' : 
+												 lang === 'fr' ? 'French' : lang.toUpperCase()}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						</CardContent>
+					</Card>
 
-									<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-										<div className="space-y-2">
-											<Label htmlFor="emergencyContactName">
-												Emergency Contact Name
-											</Label>
-											<Input
-												id="emergencyContactName"
-												value={formData.emergencyContactName}
-												onChange={(e) =>
-													setFormData({
-														...formData,
-														emergencyContactName: e.target.value,
-													})
-												}
-												required
-											/>
+					{/* Patients List */}
+					<Card>
+						<CardHeader>
+							<CardTitle>All Patients ({filteredPatients.length})</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{filteredPatients.length === 0 ? (
+								<div className="text-center py-8">
+									<UserPlus className="mx-auto h-12 w-12 text-gray-400" />
+									<h3 className="mt-2 text-sm font-semibold text-gray-900">
+										No patients found
+									</h3>
+									<p className="mt-1 text-sm text-gray-500">
+										{searchTerm || statusFilter !== 'all' || languageFilter !== 'all'
+											? 'Try adjusting your search or filters.'
+											: 'Patients will appear here when they register.'}
+									</p>
+								</div>
+							) : (
+								<div className="grid gap-4">
+									{filteredPatients.map((patient) => (
+										<div
+											key={patient._id}
+											className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+										>
+											<div className="flex-1">
+												<div className="flex items-start justify-between">
+													<div className="flex-1">
+														<h3 className="font-semibold text-gray-900">
+															{patient.first_name} {patient.last_name}
+														</h3>
+														<div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+															<div className="flex items-center gap-1">
+																<Mail className="h-3 w-3" />
+																{patient.email}
+															</div>
+															<div className="flex items-center gap-1">
+																<Phone className="h-3 w-3" />
+																{patient.phone_number}
+															</div>
+														</div>
+														<div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+															<span>Language: {patient.language === 'en' ? 'English' : patient.language.toUpperCase()}</span>
+															<span>Joined: {formatDate(patient.created_at)}</span>
+															{patient.last_visit && (
+																<span>Last visit: {formatDate(patient.last_visit)}</span>
+															)}
+														</div>
+													</div>
+													<div className="text-right">
+														<Badge 
+															variant={
+																patient.status === 'active' ? 'default' : 'secondary'
+															}
+														>
+															{patient.status}
+														</Badge>
+														<p className="text-sm text-gray-500 mt-1">
+															{patient.total_appointments || 0} appointments
+														</p>
+													</div>
+												</div>
+											</div>
+											<div className="flex items-center gap-2">
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<Button variant="ghost" size="sm">
+															<MoreHorizontal className="h-4 w-4" />
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end">
+														<DropdownMenuItem
+															onClick={() => openEditDialog(patient)}
+														>
+															<Edit className="h-4 w-4 mr-2" />
+															Edit
+														</DropdownMenuItem>
+														{patient.status === 'active' ? (
+															<DropdownMenuItem
+																onClick={() => handleSuspendPatient(patient._id, `${patient.first_name} ${patient.last_name}`)}
+															>
+																<Users className="h-4 w-4 mr-2" />
+																Suspend
+															</DropdownMenuItem>
+														) : (
+															<DropdownMenuItem
+																onClick={() => handleActivatePatient(patient._id, `${patient.first_name} ${patient.last_name}`)}
+															>
+																<UserCheck className="h-4 w-4 mr-2" />
+																Activate
+															</DropdownMenuItem>
+														)}
+														<DropdownMenuItem
+															className="text-red-600"
+															onClick={() =>
+																handleDeletePatient(patient._id, `${patient.first_name} ${patient.last_name}`)
+															}
+														>
+															<Trash2 className="h-4 w-4 mr-2" />
+															Delete
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											</div>
 										</div>
-										<div className="space-y-2">
-											<Label htmlFor="emergencyContact">
-												Emergency Contact Phone
-											</Label>
-											<Input
-												id="emergencyContact"
-												value={formData.emergencyContact}
-												onChange={(e) =>
-													setFormData({
-														...formData,
-														emergencyContact: e.target.value,
-													})
-												}
-												required
-											/>
-										</div>
-										<div className="space-y-2">
-											<Label htmlFor="emergencyContactRelation">
-												Relationship
-											</Label>
-											<Input
-												id="emergencyContactRelation"
-												value={formData.emergencyContactRelation}
-												onChange={(e) =>
-													setFormData({
-														...formData,
-														emergencyContactRelation: e.target.value,
-													})
-												}
-												placeholder="e.g., Spouse, Parent, Sibling"
-												required
-											/>
-										</div>
+									))}
+								</div>
+							)}
+						</CardContent>
+					</Card>
+
+					{/* Edit Dialog */}
+					<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+						<DialogContent className="max-w-2xl">
+							<DialogHeader>
+								<DialogTitle>Edit Patient</DialogTitle>
+								<DialogDescription>
+									Update patient information.
+								</DialogDescription>
+							</DialogHeader>
+							<div className="grid gap-4 py-4">
+								<div className="grid grid-cols-2 gap-4">
+									<div className="grid gap-2">
+										<Label htmlFor="edit-first_name">First Name</Label>
+										<Input
+											id="edit-first_name"
+											value={formData.first_name}
+											onChange={(e) =>
+												setFormData({ ...formData, first_name: e.target.value })
+											}
+											placeholder="John"
+										/>
 									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="assignedDoctor">Assigned Doctor</Label>
+									<div className="grid gap-2">
+										<Label htmlFor="edit-last_name">Last Name</Label>
+										<Input
+											id="edit-last_name"
+											value={formData.last_name}
+											onChange={(e) =>
+												setFormData({ ...formData, last_name: e.target.value })
+											}
+											placeholder="Doe"
+										/>
+									</div>
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="edit-email">Email</Label>
+									<Input
+										id="edit-email"
+										type="email"
+										value={formData.email}
+										onChange={(e) =>
+											setFormData({ ...formData, email: e.target.value })
+										}
+										placeholder="john.doe@email.com"
+									/>
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="grid gap-2">
+										<Label htmlFor="edit-phone_number">Phone Number</Label>
+										<Input
+											id="edit-phone_number"
+											value={formData.phone_number}
+											onChange={(e) =>
+												setFormData({ ...formData, phone_number: e.target.value })
+											}
+											placeholder="+1 (555) 123-4567"
+										/>
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="edit-language">Language</Label>
 										<Select
-											value={formData.doctorId}
-											onValueChange={(value) => {
-												const doctor = doctors.find((d) => d.id === value);
-												setFormData({
-													...formData,
-													doctorId: value,
-													assignedDoctor: doctor?.name || '',
-												});
-											}}
+											value={formData.language}
+											onValueChange={(value) =>
+												setFormData({ ...formData, language: value })
+											}
 										>
 											<SelectTrigger>
-												<SelectValue placeholder="Select assigned doctor" />
+												<SelectValue placeholder="Select language" />
 											</SelectTrigger>
 											<SelectContent>
-												{doctors.map((doctor) => (
-													<SelectItem key={doctor.id} value={doctor.id}>
-														{doctor.name} - {doctor.specialty}
-													</SelectItem>
-												))}
+												<SelectItem value="en">English</SelectItem>
+												<SelectItem value="es">Spanish</SelectItem>
+												<SelectItem value="fr">French</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="allergies">Allergies</Label>
-										<Textarea
-											id="allergies"
-											value={formData.allergies}
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="grid gap-2">
+										<Label htmlFor="edit-date_of_birth">Date of Birth</Label>
+										<Input
+											id="edit-date_of_birth"
+											type="date"
+											value={formData.date_of_birth}
 											onChange={(e) =>
-												setFormData({ ...formData, allergies: e.target.value })
+												setFormData({ ...formData, date_of_birth: e.target.value })
 											}
-											placeholder="List any known allergies (or 'None')"
-											rows={2}
 										/>
 									</div>
-
-									<div className="space-y-2">
-										<Label htmlFor="medicalHistory">Medical History</Label>
-										<Textarea
-											id="medicalHistory"
-											value={formData.medicalHistory}
-											onChange={(e) =>
-												setFormData({
-													...formData,
-													medicalHistory: e.target.value,
-												})
+									<div className="grid gap-2">
+										<Label htmlFor="edit-gender">Gender</Label>
+										<Select
+											value={formData.gender}
+											onValueChange={(value) =>
+												setFormData({ ...formData, gender: value })
 											}
-											placeholder="Brief medical history and conditions"
-											rows={3}
-										/>
-									</div>
-
-									<div className="flex justify-end space-x-2">
-										<Button
-											type="button"
-											variant="outline"
-											onClick={() => setIsCreateOpen(false)}
 										>
-											Cancel
-										</Button>
-										<Button type="submit" disabled={isLoading}>
-											{isLoading ? 'Creating...' : 'Create Patient'}
-										</Button>
+											<SelectTrigger>
+												<SelectValue placeholder="Select gender" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="male">Male</SelectItem>
+												<SelectItem value="female">Female</SelectItem>
+												<SelectItem value="other">Other</SelectItem>
+											</SelectContent>
+										</Select>
 									</div>
-								</form>
-							</DialogContent>
-						</Dialog>
-					</div>
-
-					{/* Filter and Sort */}
-					<div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
-						<Button variant="outline" size="sm">
-							<Filter className="w-4 h-4 mr-2" />
-							Filter
-						</Button>
-						<Select value={filterStatus} onValueChange={setFilterStatus}>
-							<SelectTrigger className="w-full md:w-48">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Patients</SelectItem>
-								<SelectItem value="active">Active</SelectItem>
-								<SelectItem value="inactive">Inactive</SelectItem>
-								<SelectItem value="critical">Critical</SelectItem>
-							</SelectContent>
-						</Select>
-						<div className="flex flex-wrap gap-2">
-							<Badge className="bg-green-100 text-green-800">
-								Active: {patients.filter((p) => p.status === 'active').length}
-							</Badge>
-							<Badge className="bg-red-100 text-red-800">
-								Critical:{' '}
-								{patients.filter((p) => p.status === 'critical').length}
-							</Badge>
-							<Badge className="bg-gray-100 text-gray-800">
-								Inactive:{' '}
-								{patients.filter((p) => p.status === 'inactive').length}
-							</Badge>
-						</div>
-					</div>
-
-					{/* Patients Grid */}
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-						{filteredPatients.map((patient) => (
-							<Card
-								key={patient.id}
-								className="hover:shadow-lg transition-shadow"
-							>
-								<CardContent className="p-6">
-									<div className="flex items-start space-x-4">
-										<Avatar className="w-16 h-16">
-											<AvatarImage
-												src={`/placeholder.svg?height=64&width=64`}
-											/>
-											<AvatarFallback>
-												{patient.firstName[0]}
-												{patient.lastName[0]}
-											</AvatarFallback>
-										</Avatar>
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center justify-between mb-2">
-												<h3 className="font-semibold text-lg truncate">
-													{patient.firstName} {patient.lastName}
-												</h3>
-												<Badge
-													className={
-														patient.status === 'active'
-															? 'bg-green-100 text-green-800'
-															: patient.status === 'critical'
-															? 'bg-red-100 text-red-800'
-															: 'bg-gray-100 text-gray-800'
-													}
-												>
-													{patient.status}
-												</Badge>
-											</div>
-											<p className="text-sm text-gray-600 mb-1">
-												ID: {patient.id}
-											</p>
-											<p className="text-sm text-gray-600 mb-1">
-												Age: {calculateAge(patient.dateOfBirth)}
-											</p>
-											<p className="text-sm text-blue-600 font-medium mb-2">
-												{patient.assignedDoctor}
-											</p>
-
-											<div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
-												<div className="flex items-center space-x-1">
-													<CalendarDays className="w-4 h-4" />
-													<span>{patient.totalAppointments}</span>
-												</div>
-												<div className="flex items-center space-x-1">
-													<Heart className="w-4 h-4" />
-													<span>{patient.bloodType}</span>
-												</div>
-												<div className="flex items-center space-x-1">
-													<Stethoscope className="w-4 h-4" />
-													<span>{patient.condition}</span>
-												</div>
-											</div>
-
-											<div className="flex space-x-2">
-												<Button
-													size="sm"
-													variant="outline"
-													onClick={() => openViewDialog(patient)}
-												>
-													<Eye className="w-4 h-4 mr-1" />
-													View
-												</Button>
-												<Button
-													size="sm"
-													variant="outline"
-													onClick={() => openEditDialog(patient)}
-												>
-													<Edit className="w-4 h-4 mr-1" />
-													Edit
-												</Button>
-												<AlertDialog>
-													<AlertDialogTrigger asChild>
-														<Button
-															size="sm"
-															variant="outline"
-															className="text-red-600 hover:text-red-700"
-														>
-															<Trash2 className="w-4 h-4 mr-1" />
-															Delete
-														</Button>
-													</AlertDialogTrigger>
-													<AlertDialogContent>
-														<AlertDialogHeader>
-															<AlertDialogTitle>
-																Delete Patient
-															</AlertDialogTitle>
-															<AlertDialogDescription>
-																Are you sure you want to delete{' '}
-																{patient.firstName} {patient.lastName}? This
-																action cannot be undone and will remove all
-																associated medical records and appointments.
-															</AlertDialogDescription>
-														</AlertDialogHeader>
-														<AlertDialogFooter>
-															<AlertDialogCancel>Cancel</AlertDialogCancel>
-															<AlertDialogAction
-																onClick={() => handleDelete(patient.id)}
-																className="bg-red-600 hover:bg-red-700"
-															>
-																Delete
-															</AlertDialogAction>
-														</AlertDialogFooter>
-													</AlertDialogContent>
-												</AlertDialog>
-											</div>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						))}
-					</div>
-
-					{filteredPatients.length === 0 && (
-						<div className="text-center py-12">
-							<Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-							<h3 className="text-lg font-semibold text-gray-900 mb-2">
-								No patients found
-							</h3>
-							<p className="text-gray-600">
-								Try adjusting your search or filter criteria.
-							</p>
-						</div>
-					)}
-				</div>
-			</div>
-
-			{/* View Patient Dialog */}
-			<Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Patient Details</DialogTitle>
-					</DialogHeader>
-					{selectedPatient && (
-						<div className="space-y-6">
-							<div className="flex items-center space-x-4">
-								<Avatar className="w-20 h-20">
-									<AvatarImage src={`/placeholder.svg?height=80&width=80`} />
-									<AvatarFallback className="text-lg">
-										{selectedPatient.firstName[0]}
-										{selectedPatient.lastName[0]}
-									</AvatarFallback>
-								</Avatar>
-								<div>
-									<h3 className="text-xl font-semibold">
-										{selectedPatient.firstName} {selectedPatient.lastName}
-									</h3>
-									<p className="text-gray-600">
-										Patient ID: {selectedPatient.id}
-									</p>
-									<p className="text-sm text-gray-600">
-										Age: {calculateAge(selectedPatient.dateOfBirth)} •{' '}
-										{selectedPatient.gender}
-									</p>
-									<Badge
-										className={
-											selectedPatient.status === 'active'
-												? 'bg-green-100 text-green-800'
-												: selectedPatient.status === 'critical'
-												? 'bg-red-100 text-red-800'
-												: 'bg-gray-100 text-gray-800'
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="edit-address">Address</Label>
+									<Textarea
+										id="edit-address"
+										value={formData.address}
+										onChange={(e) =>
+											setFormData({ ...formData, address: e.target.value })
 										}
-									>
-										{selectedPatient.status}
-									</Badge>
+										placeholder="Full address"
+										rows={2}
+									/>
 								</div>
 							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								<div className="space-y-4">
-									<h4 className="font-semibold text-gray-900">
-										Contact Information
-									</h4>
-									<div className="space-y-3">
-										<div className="flex items-center space-x-2">
-											<Mail className="w-4 h-4 text-gray-500" />
-											<span className="text-sm">{selectedPatient.email}</span>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Phone className="w-4 h-4 text-gray-500" />
-											<span className="text-sm">{selectedPatient.phone}</span>
-										</div>
-										<div className="flex items-center space-x-2">
-											<MapPin className="w-4 h-4 text-gray-500" />
-											<span className="text-sm">{selectedPatient.address}</span>
-										</div>
-									</div>
-								</div>
-
-								<div className="space-y-4">
-									<h4 className="font-semibold text-gray-900">
-										Emergency Contact
-									</h4>
-									<div className="space-y-3">
-										<div className="flex items-center space-x-2">
-											<User className="w-4 h-4 text-gray-500" />
-											<span className="text-sm">
-												{selectedPatient.emergencyContactName}
-											</span>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Phone className="w-4 h-4 text-gray-500" />
-											<span className="text-sm">
-												{selectedPatient.emergencyContact}
-											</span>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Heart className="w-4 h-4 text-gray-500" />
-											<span className="text-sm">
-												{selectedPatient.emergencyContactRelation}
-											</span>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-								<Card>
-									<CardContent className="p-4 text-center">
-										<CalendarDays className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-										<p className="text-2xl font-bold">
-											{selectedPatient.totalAppointments}
-										</p>
-										<p className="text-sm text-gray-600">Total Appointments</p>
-									</CardContent>
-								</Card>
-								<Card>
-									<CardContent className="p-4 text-center">
-										<Heart className="w-8 h-8 text-red-600 mx-auto mb-2" />
-										<p className="text-2xl font-bold">
-											{selectedPatient.bloodType}
-										</p>
-										<p className="text-sm text-gray-600">Blood Type</p>
-									</CardContent>
-								</Card>
-								<Card>
-									<CardContent className="p-4 text-center">
-										<Stethoscope className="w-8 h-8 text-green-600 mx-auto mb-2" />
-										<p className="text-lg font-bold">
-											{selectedPatient.condition}
-										</p>
-										<p className="text-sm text-gray-600">Current Condition</p>
-									</CardContent>
-								</Card>
-							</div>
-
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								<div>
-									<h4 className="font-semibold text-gray-900 mb-2">
-										Medical Information
-									</h4>
-									<div className="space-y-2">
-										<div>
-											<p className="text-sm font-medium text-gray-700">
-												Assigned Doctor:
-											</p>
-											<p className="text-sm text-gray-600">
-												{selectedPatient.assignedDoctor}
-											</p>
-										</div>
-										<div>
-											<p className="text-sm font-medium text-gray-700">
-												Allergies:
-											</p>
-											<p className="text-sm text-gray-600">
-												{selectedPatient.allergies}
-											</p>
-										</div>
-										<div>
-											<p className="text-sm font-medium text-gray-700">
-												Medical History:
-											</p>
-											<p className="text-sm text-gray-600">
-												{selectedPatient.medicalHistory}
-											</p>
-										</div>
-									</div>
-								</div>
-
-								<div>
-									<h4 className="font-semibold text-gray-900 mb-2">
-										Registration Info
-									</h4>
-									<div className="space-y-2">
-										<div>
-											<p className="text-sm font-medium text-gray-700">
-												Registration Date:
-											</p>
-											<p className="text-sm text-gray-600">
-												{selectedPatient.registrationDate}
-											</p>
-										</div>
-										<div>
-											<p className="text-sm font-medium text-gray-700">
-												Last Visit:
-											</p>
-											<p className="text-sm text-gray-600">
-												{selectedPatient.lastVisit || 'No visits yet'}
-											</p>
-										</div>
-										<div>
-											<p className="text-sm font-medium text-gray-700">
-												Date of Birth:
-											</p>
-											<p className="text-sm text-gray-600">
-												{selectedPatient.dateOfBirth}
-											</p>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					)}
-				</DialogContent>
-			</Dialog>
-
-			{/* Edit Patient Dialog */}
-			<Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Edit Patient</DialogTitle>
-					</DialogHeader>
-					<form onSubmit={handleEdit} className="space-y-6">
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="editFirstName">First Name</Label>
-								<Input
-									id="editFirstName"
-									value={formData.firstName}
-									onChange={(e) =>
-										setFormData({ ...formData, firstName: e.target.value })
-									}
-									required
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="editLastName">Last Name</Label>
-								<Input
-									id="editLastName"
-									value={formData.lastName}
-									onChange={(e) =>
-										setFormData({ ...formData, lastName: e.target.value })
-									}
-									required
-								/>
-							</div>
-						</div>
-
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="editEmail">Email</Label>
-								<Input
-									id="editEmail"
-									type="email"
-									value={formData.email}
-									onChange={(e) =>
-										setFormData({ ...formData, email: e.target.value })
-									}
-									required
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="editPhone">Phone</Label>
-								<Input
-									id="editPhone"
-									value={formData.phone}
-									onChange={(e) =>
-										setFormData({ ...formData, phone: e.target.value })
-									}
-									required
-								/>
-							</div>
-						</div>
-
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="editDateOfBirth">Date of Birth</Label>
-								<Input
-									id="editDateOfBirth"
-									type="date"
-									value={formData.dateOfBirth}
-									onChange={(e) =>
-										setFormData({ ...formData, dateOfBirth: e.target.value })
-									}
-									required
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="editGender">Gender</Label>
-								<Select
-									value={formData.gender}
-									onValueChange={(value) =>
-										setFormData({ ...formData, gender: value })
-									}
+							<DialogFooter>
+								<Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+									Cancel
+								</Button>
+								<Button 
+									onClick={handleUpdatePatient}
+									disabled={!formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()}
 								>
-									<SelectTrigger>
-										<SelectValue placeholder="Select gender" />
-									</SelectTrigger>
-									<SelectContent>
-										{genders.map((gender) => (
-											<SelectItem key={gender} value={gender}>
-												{gender}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="editBloodType">Blood Type</Label>
-								<Select
-									value={formData.bloodType}
-									onValueChange={(value) =>
-										setFormData({ ...formData, bloodType: value })
-									}
-								>
-									<SelectTrigger>
-										<SelectValue placeholder="Select blood type" />
-									</SelectTrigger>
-									<SelectContent>
-										{bloodTypes.map((type) => (
-											<SelectItem key={type} value={type}>
-												{type}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="editAddress">Address</Label>
-							<Input
-								id="editAddress"
-								value={formData.address}
-								onChange={(e) =>
-									setFormData({ ...formData, address: e.target.value })
-								}
-								required
-							/>
-						</div>
-
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-							<div className="space-y-2">
-								<Label htmlFor="editEmergencyContactName">
-									Emergency Contact Name
-								</Label>
-								<Input
-									id="editEmergencyContactName"
-									value={formData.emergencyContactName}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											emergencyContactName: e.target.value,
-										})
-									}
-									required
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="editEmergencyContact">
-									Emergency Contact Phone
-								</Label>
-								<Input
-									id="editEmergencyContact"
-									value={formData.emergencyContact}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											emergencyContact: e.target.value,
-										})
-									}
-									required
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="editEmergencyContactRelation">
-									Relationship
-								</Label>
-								<Input
-									id="editEmergencyContactRelation"
-									value={formData.emergencyContactRelation}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											emergencyContactRelation: e.target.value,
-										})
-									}
-									required
-								/>
-							</div>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="editAssignedDoctor">Assigned Doctor</Label>
-							<Select
-								value={formData.doctorId}
-								onValueChange={(value) => {
-									const doctor = doctors.find((d) => d.id === value);
-									setFormData({
-										...formData,
-										doctorId: value,
-										assignedDoctor: doctor?.name || '',
-									});
-								}}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select assigned doctor" />
-								</SelectTrigger>
-								<SelectContent>
-									{doctors.map((doctor) => (
-										<SelectItem key={doctor.id} value={doctor.id}>
-											{doctor.name} - {doctor.specialty}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="editAllergies">Allergies</Label>
-							<Textarea
-								id="editAllergies"
-								value={formData.allergies}
-								onChange={(e) =>
-									setFormData({ ...formData, allergies: e.target.value })
-								}
-								placeholder="List any known allergies (or 'None')"
-								rows={2}
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="editMedicalHistory">Medical History</Label>
-							<Textarea
-								id="editMedicalHistory"
-								value={formData.medicalHistory}
-								onChange={(e) =>
-									setFormData({ ...formData, medicalHistory: e.target.value })
-								}
-								placeholder="Brief medical history and conditions"
-								rows={3}
-							/>
-						</div>
-
-						<div className="flex justify-end space-x-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => setIsEditOpen(false)}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={isLoading}>
-								{isLoading ? 'Updating...' : 'Update Patient'}
-							</Button>
-						</div>
-					</form>
-				</DialogContent>
-			</Dialog>
-		</div>
+									Update Patient
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</div>
+			</ResponsiveDashboardLayout>
+		</ProtectedRoute>
 	);
 }
+
+export default PatientsPage;
