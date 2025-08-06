@@ -17,15 +17,12 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select';
+import { getAdminSidebarItems, getAdminUserInfo } from '@/lib/utils/admin-layout';
 import {
-	Activity,
-	Droplets,
-	Calendar,
-	BarChart3,
-	Settings,
 	ArrowLeft,
 	Save,
 	Loader2,
+	Droplets,
 } from 'lucide-react';
 
 export default function AddDonorPage() {
@@ -48,29 +45,11 @@ export default function AddDonorPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
 
-	// User info for layout
-	const userInfo = user
-		? {
-				name: `${user.first_name} ${user.last_name}`.toUpperCase(),
-				fallback: `${user.first_name[0]}${user.last_name[0]}`,
-				role: user.account_type === 'hospital' ? 'Admin' : 'Staff',
-				id: user._id,
-		  }
-		: {
-				name: 'Anonymous User',
-				fallback: 'AU',
-				role: 'Unknown',
-				id: '',
-		  };
-
 	// Sidebar items
-	const sidebarItems = [
-		{ icon: Activity, label: 'Dashboard', href: '/admin/dashboard' },
-		{ icon: Droplets, label: 'Blood Bank', href: '/admin/blood-bank' },
-		{ icon: Calendar, label: 'Appointments', href: '/admin/appointments' },
-		{ icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
-		{ icon: Settings, label: 'Settings', href: '/admin/settings' },
-	];
+	const sidebarItems = getAdminSidebarItems('blood-bank');
+
+	// User info for layout
+	const userInfo = getAdminUserInfo(user);
 
 	const handleInputChange = (field: keyof DonorData, value: any) => {
 		setFormData((prev) => ({
@@ -128,13 +107,23 @@ export default function AddDonorPage() {
 		setIsSubmitting(true);
 
 		try {
-			await bloodBankService.ingestDonorData(formData as DonorData);
+			// Use admin-specific createDonor method
+			const adminId = user?._id || user?.user_id;
+			console.log('🔍 User object:', user);
+			console.log('🆔 Admin ID found:', adminId);
+			
+			if (!adminId) {
+				throw new Error('Admin ID not found. Please log in again.');
+			}
+			
+			await bloodBankService.createDonor(adminId, formData as DonorData);
 			setSuccess(true);
 			setTimeout(() => {
 				router.push('/admin/blood-bank');
 			}, 2000);
 		} catch (err: any) {
-			setError(bloodBankService.parseApiError(err));
+			console.error('❌ Submit error:', err);
+			setError(err.message || 'Failed to add donor');
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -153,6 +142,11 @@ export default function AddDonorPage() {
 		});
 		setError(null);
 		setSuccess(false);
+	};
+
+	const generateDonorId = () => {
+		const newId = bloodBankService.generateDonorId();
+		handleInputChange('donor_id', newId);
 	};
 
 	if (success) {
@@ -209,12 +203,25 @@ export default function AddDonorPage() {
 				{error && (
 					<Card className="border-red-200 bg-red-50">
 						<CardContent className="pt-6">
-							<p className="text-red-700">{error}</p>
+							<div className="flex items-start space-x-3">
+								<div className="flex-shrink-0">
+									<div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
+										<span className="text-red-600 text-sm">!</span>
+									</div>
+								</div>
+								<div className="flex-1">
+									<p className="text-red-800 font-medium">Error</p>
+									<p className="text-red-700 text-sm mt-1">{error}</p>
+									{error.includes('already exists') && (
+										<p className="text-red-600 text-xs mt-2">
+											💡 Tip: Click the ✨ button next to Donor ID to generate a unique ID
+										</p>
+									)}
+								</div>
+							</div>
 						</CardContent>
 					</Card>
-				)}
-
-				{/* Add Donor Form */}
+				)}				{/* Add Donor Form */}
 				<Card>
 					<CardHeader>
 						<CardTitle>Donor Information</CardTitle>
@@ -225,13 +232,28 @@ export default function AddDonorPage() {
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="space-y-2">
 									<Label htmlFor="donor_id">Donor ID *</Label>
-									<Input
-										id="donor_id"
-										value={formData.donor_id || ''}
-										onChange={(e) => handleInputChange('donor_id', e.target.value)}
-										placeholder="e.g., D-2024-001"
-										required
-									/>
+									<div className="flex space-x-2">
+										<Input
+											id="donor_id"
+											value={formData.donor_id || ''}
+											onChange={(e) => handleInputChange('donor_id', e.target.value)}
+											placeholder="e.g., DON123456789"
+											required
+											className="flex-1"
+										/>
+										<Button
+											type="button"
+											variant="outline"
+											size="icon"
+											onClick={generateDonorId}
+											title="Generate unique donor ID"
+										>
+											✨
+										</Button>
+									</div>
+									<p className="text-xs text-gray-500">
+										Use a unique identifier or click ✨ to generate one
+									</p>
 								</div>
 
 								<div className="space-y-2">

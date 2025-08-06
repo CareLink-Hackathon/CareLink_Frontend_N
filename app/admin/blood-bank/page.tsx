@@ -15,16 +15,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-	Activity,
 	Droplets,
 	TrendingUp,
 	AlertTriangle,
 	Plus,
-	Calendar,
 	BarChart3,
-	Settings,
 	RefreshCw,
 } from 'lucide-react';
+import { getAdminSidebarItems, getAdminUserInfo } from '@/lib/utils/admin-layout';
 
 export default function BloodBankDashboard() {
 	const router = useRouter();
@@ -37,29 +35,11 @@ export default function BloodBankDashboard() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	// User info for layout
-	const userInfo = user
-		? {
-				name: `${user.first_name} ${user.last_name}`.toUpperCase(),
-				fallback: `${user.first_name[0]}${user.last_name[0]}`,
-				role: user.account_type === 'hospital' ? 'Admin' : 'Staff',
-				id: user._id,
-		  }
-		: {
-				name: 'Anonymous User',
-				fallback: 'AU',
-				role: 'Unknown',
-				id: '',
-		  };
-
 	// Sidebar items
-	const sidebarItems = [
-		{ icon: Activity, label: 'Dashboard', href: '/admin/dashboard' },
-		{ icon: Droplets, label: 'Blood Bank', href: '/admin/blood-bank', active: true },
-		{ icon: Calendar, label: 'Appointments', href: '/admin/appointments' },
-		{ icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
-		{ icon: Settings, label: 'Settings', href: '/admin/settings' },
-	];
+	const sidebarItems = getAdminSidebarItems('blood-bank');
+
+	// User info for layout
+	const userInfo = getAdminUserInfo(user);
 
 	// Load data on component mount
 	useEffect(() => {
@@ -71,11 +51,19 @@ export default function BloodBankDashboard() {
 		setError(null);
 
 		try {
-			// Load inventory data
-			const inventory = await bloodBankService.getInventoryStatus();
-			setInventoryData(inventory);
+			const adminId = user?._id || user?.user_id;
+			console.log('🔍 User object:', user);
+			console.log('🆔 Admin ID found:', adminId);
+			
+			if (!adminId) {
+				throw new Error('Admin ID not found. Please log in again.');
+			}
 
-			// Load 7-day forecast
+			// Load admin-specific inventory data
+			const inventory = await bloodBankService.getAdminInventory(adminId);
+			setInventoryData(inventory as InventoryStatus[]);
+
+			// Load 7-day forecast (legacy endpoint)
 			const today = new Date();
 			const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 			
@@ -85,14 +73,15 @@ export default function BloodBankDashboard() {
 			});
 			setForecastData(forecast);
 
-			// Load optimization recommendations
+			// Load optimization recommendations (legacy endpoint)
 			const optimization = await bloodBankService.optimizeInventory({
 				forecast_days: 7,
 				safety_stock_days: 3,
 			});
 			setOptimizationData(optimization);
 		} catch (err: any) {
-			setError(bloodBankService.parseApiError(err));
+			console.error('❌ Dashboard load error:', err);
+			setError(err.message || 'Failed to load dashboard data');
 		} finally {
 			setIsLoading(false);
 		}
