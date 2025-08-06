@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,14 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import {
 	Search,
-	Bell,
-	Settings,
-	HelpCircle,
-	LogOut,
-	Calendar,
-	Users,
-	Activity,
-	FileText,
 	Save,
 	Upload,
 	Shield,
@@ -44,120 +36,233 @@ import {
 	Lock,
 	Key,
 	AlertTriangle,
-	Droplets,
+	LogOut,
+	Settings,
+	Bell,
+	Loader2,
+	CheckCircle,
+	XCircle,
 } from 'lucide-react';
+import { getAdminSidebarItems, getAdminUserInfo } from '@/lib/utils/admin-layout';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAdminSettings } from '@/hooks/useAdminSettings';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminSettings() {
 	const router = useRouter();
-	const [isLoading, setIsLoading] = useState(false);
+	const { user } = useAuth();
+	const { toast } = useToast();
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [logoImage, setLogoImage] = useState<string | null>(null);
+	const [isSaving, setIsSaving] = useState<{ [key: string]: boolean }>({});
 
-	const sidebarItems = [
-		{ icon: Activity, label: 'Dashboard', href: '/admin/dashboard' },
-		{ icon: Calendar, label: 'Appointments', href: '/admin/appointments' },
-		{ icon: Droplets, label: 'Blood Bank', href: '/admin/blood-bank' },
-		{ icon: Users, label: 'Doctors', href: '/admin/doctors' },
-		{ icon: Users, label: 'Patients', href: '/admin/patients' },
-		{ icon: FileText, label: 'Feedback Analytics', href: '/admin/feedback' },
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/admin/notifications',
-			badge: '5',
-		},
-		{
-			icon: Settings,
-			label: 'Settings',
-			href: '/admin/settings',
-			active: true,
-		},
-		{ icon: HelpCircle, label: 'Help Center', href: '/admin/help' },
-	];
+	const {
+		loading,
+		error,
+		fetchHospitalSettings,
+		updateHospitalSettings,
+		fetchSystemSettings,
+		updateSystemSettings,
+		fetchNotificationSettings,
+		updateNotificationSettings,
+		fetchSecuritySettings,
+		updateSecuritySettings,
+		fetchAppearanceSettings,
+		updateAppearanceSettings,
+		uploadLogo,
+		clearError,
+	} = useAdminSettings();
 
+	const sidebarItems = getAdminSidebarItems('settings');
+	const userInfo = getAdminUserInfo({ first_name: 'Admin', last_name: 'User' });
+
+	// Settings state
 	const [hospitalSettings, setHospitalSettings] = useState({
 		name: 'CareLink Medical Center',
 		email: 'admin@carelink.com',
 		phone: '+1 (555) 123-4567',
 		address: '123 Medical Plaza, Healthcare City, HC 12345',
 		website: 'https://carelink.com',
-		description:
-			'A leading healthcare facility providing comprehensive medical services with state-of-the-art technology and compassionate care.',
-		establishedYear: '1995',
-		licenseNumber: 'HL-2023-001',
+		description: 'A leading healthcare facility providing comprehensive medical services with state-of-the-art technology and compassionate care.',
+		established_year: '1995',
+		license_number: 'HL-2023-001',
 		accreditation: 'JCI Accredited',
+		logo_url: undefined as string | undefined,
 	});
 
 	const [systemSettings, setSystemSettings] = useState({
 		timezone: 'America/New_York',
-		dateFormat: 'MM/DD/YYYY',
-		timeFormat: '12-hour',
+		date_format: 'MM/DD/YYYY',
+		time_format: '12-hour',
 		language: 'English',
 		currency: 'USD',
-		maintenanceMode: false,
-		allowRegistration: true,
-		requireEmailVerification: true,
-		sessionTimeout: '30',
-		maxLoginAttempts: '5',
+		maintenance_mode: false,
+		allow_registration: true,
+		require_email_verification: true,
+		session_timeout: 30,
+		max_login_attempts: 5,
 	});
 
 	const [notificationSettings, setNotificationSettings] = useState({
-		emailNotifications: true,
-		smsNotifications: true,
-		pushNotifications: true,
-		appointmentReminders: true,
-		systemAlerts: true,
-		maintenanceNotifications: true,
-		emergencyAlerts: true,
-		weeklyReports: false,
-		monthlyReports: true,
+		email_notifications: true,
+		sms_notifications: true,
+		push_notifications: true,
+		appointment_reminders: true,
+		system_alerts: true,
+		maintenance_notifications: true,
+		emergency_alerts: true,
+		weekly_reports: false,
+		monthly_reports: true,
 	});
 
 	const [securitySettings, setSecuritySettings] = useState({
-		twoFactorAuth: true,
-		passwordMinLength: '8',
-		passwordRequireNumbers: true,
-		passwordRequireSymbols: true,
-		passwordRequireUppercase: true,
-		passwordExpiry: '90',
-		loginAuditLog: true,
-		dataEncryption: true,
-		backupFrequency: 'daily',
-		backupRetention: '30',
+		two_factor_auth: true,
+		password_min_length: 8,
+		password_require_numbers: true,
+		password_require_symbols: true,
+		password_require_uppercase: true,
+		password_expiry: 90,
+		login_audit_log: true,
+		data_encryption: true,
+		backup_frequency: 'daily',
+		backup_retention: 30,
 	});
 
 	const [appearanceSettings, setAppearanceSettings] = useState({
-		primaryColor: '#3B82F6',
-		secondaryColor: '#10B981',
+		primary_color: '#3B82F6',
+		secondary_color: '#10B981',
 		theme: 'light',
-		fontFamily: 'Inter',
-		showHospitalLogo: true,
-		showWelcomeMessage: true,
-		enableAnimations: true,
-		compactMode: false,
+		font_family: 'Inter',
+		show_hospital_logo: true,
+		show_welcome_message: true,
+		enable_animations: true,
+		compact_mode: false,
 	});
 
-	const handleSave = async (settingType: string) => {
-		setIsLoading(true);
+	// Load settings on component mount
+	useEffect(() => {
+		loadAllSettings();
+	}, []);
 
-		// Simulate API call
-		setTimeout(() => {
-			setIsLoading(false);
-			// Show success message
-			console.log(`${settingType} settings saved successfully`);
-		}, 1000);
+	const loadAllSettings = async () => {
+		try {
+			const [hospital, system, notifications, security, appearance] = await Promise.all([
+				fetchHospitalSettings(),
+				fetchSystemSettings(),
+				fetchNotificationSettings(),
+				fetchSecuritySettings(),
+				fetchAppearanceSettings(),
+			]);
+
+			if (hospital) {
+				setHospitalSettings({
+					name: hospital.name || '',
+					email: hospital.email || '',
+					phone: hospital.phone || '',
+					address: hospital.address || '',
+					website: hospital.website || '',
+					description: hospital.description || '',
+					established_year: hospital.established_year || '',
+					license_number: hospital.license_number || '',
+					accreditation: hospital.accreditation || '',
+					logo_url: hospital.logo_url,
+				});
+			}
+			if (system) setSystemSettings(system);
+			if (notifications) setNotificationSettings(notifications);
+			if (security) setSecuritySettings(security);
+			if (appearance) setAppearanceSettings(appearance);
+		} catch (error) {
+			console.error('Error loading settings:', error);
+		}
 	};
 
-	const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+	const handleSave = async (settingType: string) => {
+		setIsSaving(prev => ({ ...prev, [settingType]: true }));
+
+		try {
+			let success = false;
+
+			switch (settingType) {
+				case 'Hospital':
+					success = await updateHospitalSettings(hospitalSettings);
+					break;
+				case 'System':
+					success = await updateSystemSettings(systemSettings);
+					break;
+				case 'Notifications':
+					success = await updateNotificationSettings(notificationSettings);
+					break;
+				case 'Security':
+					success = await updateSecuritySettings(securitySettings);
+					break;
+				case 'Appearance':
+					success = await updateAppearanceSettings(appearanceSettings);
+					break;
+			}
+
+			if (success) {
+				toast({
+					title: 'Settings Updated',
+					description: `${settingType} settings have been saved successfully.`,
+					duration: 3000,
+				});
+			}
+		} catch (error) {
+			toast({
+				title: 'Error',
+				description: `Failed to save ${settingType.toLowerCase()} settings. Please try again.`,
+				variant: 'destructive',
+				duration: 3000,
+			});
+		} finally {
+			setIsSaving(prev => ({ ...prev, [settingType]: false }));
+		}
+	};
+
+	const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		if (file) {
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				setLogoImage(e.target?.result as string);
-			};
-			reader.readAsDataURL(file);
+			// Validate file size (5MB max)
+			if (file.size > 5 * 1024 * 1024) {
+				toast({
+					title: 'File too large',
+					description: 'Please select an image smaller than 5MB.',
+					variant: 'destructive',
+				});
+				return;
+			}
+
+			// Validate file type
+			if (!file.type.startsWith('image/')) {
+				toast({
+					title: 'Invalid file type',
+					description: 'Please select an image file.',
+					variant: 'destructive',
+				});
+				return;
+			}
+
+			try {
+				const logoUrl = await uploadLogo(file);
+				if (logoUrl) {
+					setLogoImage(logoUrl);
+					setHospitalSettings(prev => ({ ...prev, logo_url: logoUrl }));
+					toast({
+						title: 'Logo uploaded',
+						description: 'Hospital logo has been updated successfully.',
+						duration: 3000,
+					});
+				}
+			} catch (error) {
+				toast({
+					title: 'Upload failed',
+					description: 'Failed to upload logo. Please try again.',
+					variant: 'destructive',
+				});
+			}
 		}
 	};
 
@@ -327,11 +432,11 @@ export default function AdminSettings() {
 												</Label>
 												<Input
 													id="establishedYear"
-													value={hospitalSettings.establishedYear}
+													value={hospitalSettings.established_year}
 													onChange={(e) =>
 														setHospitalSettings({
 															...hospitalSettings,
-															establishedYear: e.target.value,
+															established_year: e.target.value,
 														})
 													}
 												/>
@@ -417,11 +522,11 @@ export default function AdminSettings() {
 												<Label htmlFor="licenseNumber">License Number</Label>
 												<Input
 													id="licenseNumber"
-													value={hospitalSettings.licenseNumber}
+													value={hospitalSettings.license_number}
 													onChange={(e) =>
 														setHospitalSettings({
 															...hospitalSettings,
-															licenseNumber: e.target.value,
+															license_number: e.target.value,
 														})
 													}
 												/>
@@ -459,10 +564,10 @@ export default function AdminSettings() {
 										<div className="flex justify-end">
 											<Button
 												onClick={() => handleSave('Hospital')}
-												disabled={isLoading}
+												disabled={loading}
 											>
 												<Save className="w-4 h-4 mr-2" />
-												{isLoading ? 'Saving...' : 'Save Changes'}
+												{loading ? 'Saving...' : 'Save Changes'}
 											</Button>
 										</div>
 									</CardContent>
@@ -539,11 +644,11 @@ export default function AdminSettings() {
 											<div className="space-y-2">
 												<Label htmlFor="dateFormat">Date Format</Label>
 												<Select
-													value={systemSettings.dateFormat}
+													value={systemSettings.date_format}
 													onValueChange={(value) =>
 														setSystemSettings({
 															...systemSettings,
-															dateFormat: value,
+															date_format: value,
 														})
 													}
 												>
@@ -566,11 +671,11 @@ export default function AdminSettings() {
 											<div className="space-y-2">
 												<Label htmlFor="timeFormat">Time Format</Label>
 												<Select
-													value={systemSettings.timeFormat}
+													value={systemSettings.time_format}
 													onValueChange={(value) =>
 														setSystemSettings({
 															...systemSettings,
-															timeFormat: value,
+															time_format: value,
 														})
 													}
 												>
@@ -621,11 +726,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={systemSettings.maintenanceMode}
+														checked={systemSettings.maintenance_mode}
 														onCheckedChange={(checked) =>
 															setSystemSettings({
 																...systemSettings,
-																maintenanceMode: checked,
+																maintenance_mode: checked,
 															})
 														}
 													/>
@@ -638,11 +743,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={systemSettings.allowRegistration}
+														checked={systemSettings.allow_registration}
 														onCheckedChange={(checked) =>
 															setSystemSettings({
 																...systemSettings,
-																allowRegistration: checked,
+																allow_registration: checked,
 															})
 														}
 													/>
@@ -655,11 +760,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={systemSettings.requireEmailVerification}
+														checked={systemSettings.require_email_verification}
 														onCheckedChange={(checked) =>
 															setSystemSettings({
 																...systemSettings,
-																requireEmailVerification: checked,
+																require_email_verification: checked,
 															})
 														}
 													/>
@@ -675,11 +780,11 @@ export default function AdminSettings() {
 												<Input
 													id="sessionTimeout"
 													type="number"
-													value={systemSettings.sessionTimeout}
+													value={systemSettings.session_timeout}
 													onChange={(e) =>
 														setSystemSettings({
 															...systemSettings,
-															sessionTimeout: e.target.value,
+															session_timeout: parseInt(e.target.value) || 0,
 														})
 													}
 												/>
@@ -691,11 +796,11 @@ export default function AdminSettings() {
 												<Input
 													id="maxLoginAttempts"
 													type="number"
-													value={systemSettings.maxLoginAttempts}
+													value={systemSettings.max_login_attempts}
 													onChange={(e) =>
 														setSystemSettings({
 															...systemSettings,
-															maxLoginAttempts: e.target.value,
+															max_login_attempts: parseInt(e.target.value) || 0,
 														})
 													}
 												/>
@@ -705,10 +810,10 @@ export default function AdminSettings() {
 										<div className="flex justify-end">
 											<Button
 												onClick={() => handleSave('System')}
-												disabled={isLoading}
+												disabled={loading}
 											>
 												<Save className="w-4 h-4 mr-2" />
-												{isLoading ? 'Saving...' : 'Save Changes'}
+												{loading ? 'Saving...' : 'Save Changes'}
 											</Button>
 										</div>
 									</CardContent>
@@ -736,11 +841,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.emailNotifications}
+														checked={notificationSettings.email_notifications}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																emailNotifications: checked,
+																email_notifications: checked,
 															})
 														}
 													/>
@@ -753,11 +858,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.smsNotifications}
+														checked={notificationSettings.sms_notifications}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																smsNotifications: checked,
+																sms_notifications: checked,
 															})
 														}
 													/>
@@ -770,11 +875,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.pushNotifications}
+														checked={notificationSettings.push_notifications}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																pushNotifications: checked,
+																push_notifications: checked,
 															})
 														}
 													/>
@@ -795,11 +900,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.appointmentReminders}
+														checked={notificationSettings.appointment_reminders}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																appointmentReminders: checked,
+																appointment_reminders: checked,
 															})
 														}
 													/>
@@ -812,11 +917,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.systemAlerts}
+														checked={notificationSettings.system_alerts}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																systemAlerts: checked,
+																system_alerts: checked,
 															})
 														}
 													/>
@@ -830,12 +935,12 @@ export default function AdminSettings() {
 													</div>
 													<Switch
 														checked={
-															notificationSettings.maintenanceNotifications
+															notificationSettings.maintenance_notifications
 														}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																maintenanceNotifications: checked,
+																maintenance_notifications: checked,
 															})
 														}
 													/>
@@ -848,11 +953,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.emergencyAlerts}
+														checked={notificationSettings.emergency_alerts}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																emergencyAlerts: checked,
+																emergency_alerts: checked,
 															})
 														}
 													/>
@@ -873,11 +978,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.weeklyReports}
+														checked={notificationSettings.weekly_reports}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																weeklyReports: checked,
+																weekly_reports: checked,
 															})
 														}
 													/>
@@ -890,11 +995,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={notificationSettings.monthlyReports}
+														checked={notificationSettings.monthly_reports}
 														onCheckedChange={(checked) =>
 															setNotificationSettings({
 																...notificationSettings,
-																monthlyReports: checked,
+																monthly_reports: checked,
 															})
 														}
 													/>
@@ -905,10 +1010,10 @@ export default function AdminSettings() {
 										<div className="flex justify-end">
 											<Button
 												onClick={() => handleSave('Notifications')}
-												disabled={isLoading}
+												disabled={loading}
 											>
 												<Save className="w-4 h-4 mr-2" />
-												{isLoading ? 'Saving...' : 'Save Changes'}
+												{loading ? 'Saving...' : 'Save Changes'}
 											</Button>
 										</div>
 									</CardContent>
@@ -936,11 +1041,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={securitySettings.twoFactorAuth}
+														checked={securitySettings.two_factor_auth}
 														onCheckedChange={(checked) =>
 															setSecuritySettings({
 																...securitySettings,
-																twoFactorAuth: checked,
+																two_factor_auth: checked,
 															})
 														}
 													/>
@@ -953,11 +1058,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={securitySettings.loginAuditLog}
+														checked={securitySettings.login_audit_log}
 														onCheckedChange={(checked) =>
 															setSecuritySettings({
 																...securitySettings,
-																loginAuditLog: checked,
+																login_audit_log: checked,
 															})
 														}
 													/>
@@ -977,11 +1082,11 @@ export default function AdminSettings() {
 													<Input
 														id="passwordMinLength"
 														type="number"
-														value={securitySettings.passwordMinLength}
+														value={securitySettings.password_min_length}
 														onChange={(e) =>
 															setSecuritySettings({
 																...securitySettings,
-																passwordMinLength: e.target.value,
+																password_min_length: parseInt(e.target.value) || 0,
 															})
 														}
 													/>
@@ -993,11 +1098,11 @@ export default function AdminSettings() {
 													<Input
 														id="passwordExpiry"
 														type="number"
-														value={securitySettings.passwordExpiry}
+														value={securitySettings.password_expiry}
 														onChange={(e) =>
 															setSecuritySettings({
 																...securitySettings,
-																passwordExpiry: e.target.value,
+																password_expiry: parseInt(e.target.value) || 0,
 															})
 														}
 													/>
@@ -1012,11 +1117,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={securitySettings.passwordRequireNumbers}
+														checked={securitySettings.password_require_numbers}
 														onCheckedChange={(checked) =>
 															setSecuritySettings({
 																...securitySettings,
-																passwordRequireNumbers: checked,
+																password_require_numbers: checked,
 															})
 														}
 													/>
@@ -1029,11 +1134,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={securitySettings.passwordRequireSymbols}
+														checked={securitySettings.password_require_symbols}
 														onCheckedChange={(checked) =>
 															setSecuritySettings({
 																...securitySettings,
-																passwordRequireSymbols: checked,
+																password_require_symbols: checked,
 															})
 														}
 													/>
@@ -1046,11 +1151,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={securitySettings.passwordRequireUppercase}
+														checked={securitySettings.password_require_uppercase}
 														onCheckedChange={(checked) =>
 															setSecuritySettings({
 																...securitySettings,
-																passwordRequireUppercase: checked,
+																password_require_uppercase: checked,
 															})
 														}
 													/>
@@ -1071,11 +1176,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={securitySettings.dataEncryption}
+														checked={securitySettings.data_encryption}
 														onCheckedChange={(checked) =>
 															setSecuritySettings({
 																...securitySettings,
-																dataEncryption: checked,
+																data_encryption: checked,
 															})
 														}
 													/>
@@ -1087,11 +1192,11 @@ export default function AdminSettings() {
 														Backup Frequency
 													</Label>
 													<Select
-														value={securitySettings.backupFrequency}
+														value={securitySettings.backup_frequency}
 														onValueChange={(value) =>
 															setSecuritySettings({
 																...securitySettings,
-																backupFrequency: value,
+																backup_frequency: value,
 															})
 														}
 													>
@@ -1112,11 +1217,11 @@ export default function AdminSettings() {
 													<Input
 														id="backupRetention"
 														type="number"
-														value={securitySettings.backupRetention}
+														value={securitySettings.backup_retention}
 														onChange={(e) =>
 															setSecuritySettings({
 																...securitySettings,
-																backupRetention: e.target.value,
+																backup_retention: parseInt(e.target.value) || 0,
 															})
 														}
 													/>
@@ -1127,10 +1232,10 @@ export default function AdminSettings() {
 										<div className="flex justify-end">
 											<Button
 												onClick={() => handleSave('Security')}
-												disabled={isLoading}
+												disabled={loading}
 											>
 												<Save className="w-4 h-4 mr-2" />
-												{isLoading ? 'Saving...' : 'Save Changes'}
+												{loading ? 'Saving...' : 'Save Changes'}
 											</Button>
 										</div>
 									</CardContent>
@@ -1154,21 +1259,21 @@ export default function AdminSettings() {
 													<Input
 														id="primaryColor"
 														type="color"
-														value={appearanceSettings.primaryColor}
+														value={appearanceSettings.primary_color}
 														onChange={(e) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																primaryColor: e.target.value,
+																primary_color: e.target.value,
 															})
 														}
 														className="w-16 h-10"
 													/>
 													<Input
-														value={appearanceSettings.primaryColor}
+														value={appearanceSettings.primary_color}
 														onChange={(e) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																primaryColor: e.target.value,
+																primary_color: e.target.value,
 															})
 														}
 														className="flex-1"
@@ -1181,21 +1286,21 @@ export default function AdminSettings() {
 													<Input
 														id="secondaryColor"
 														type="color"
-														value={appearanceSettings.secondaryColor}
+														value={appearanceSettings.secondary_color}
 														onChange={(e) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																secondaryColor: e.target.value,
+																secondary_color: e.target.value,
 															})
 														}
 														className="w-16 h-10"
 													/>
 													<Input
-														value={appearanceSettings.secondaryColor}
+														value={appearanceSettings.secondary_color}
 														onChange={(e) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																secondaryColor: e.target.value,
+																secondary_color: e.target.value,
 															})
 														}
 														className="flex-1"
@@ -1229,11 +1334,11 @@ export default function AdminSettings() {
 											<div className="space-y-2">
 												<Label htmlFor="fontFamily">Font Family</Label>
 												<Select
-													value={appearanceSettings.fontFamily}
+													value={appearanceSettings.font_family}
 													onValueChange={(value) =>
 														setAppearanceSettings({
 															...appearanceSettings,
-															fontFamily: value,
+															font_family: value,
 														})
 													}
 												>
@@ -1263,11 +1368,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={appearanceSettings.showHospitalLogo}
+														checked={appearanceSettings.show_hospital_logo}
 														onCheckedChange={(checked) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																showHospitalLogo: checked,
+																show_hospital_logo: checked,
 															})
 														}
 													/>
@@ -1280,11 +1385,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={appearanceSettings.showWelcomeMessage}
+														checked={appearanceSettings.show_welcome_message}
 														onCheckedChange={(checked) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																showWelcomeMessage: checked,
+																show_welcome_message: checked,
 															})
 														}
 													/>
@@ -1297,11 +1402,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={appearanceSettings.enableAnimations}
+														checked={appearanceSettings.enable_animations}
 														onCheckedChange={(checked) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																enableAnimations: checked,
+																enable_animations: checked,
 															})
 														}
 													/>
@@ -1314,11 +1419,11 @@ export default function AdminSettings() {
 														</p>
 													</div>
 													<Switch
-														checked={appearanceSettings.compactMode}
+														checked={appearanceSettings.compact_mode}
 														onCheckedChange={(checked) =>
 															setAppearanceSettings({
 																...appearanceSettings,
-																compactMode: checked,
+																compact_mode: checked,
 															})
 														}
 													/>
@@ -1329,10 +1434,10 @@ export default function AdminSettings() {
 										<div className="flex justify-end">
 											<Button
 												onClick={() => handleSave('Appearance')}
-												disabled={isLoading}
+												disabled={loading}
 											>
 												<Save className="w-4 h-4 mr-2" />
-												{isLoading ? 'Saving...' : 'Save Changes'}
+												{loading ? 'Saving...' : 'Save Changes'}
 											</Button>
 										</div>
 									</CardContent>

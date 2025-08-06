@@ -25,14 +25,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
 	Search,
-	Bell,
-	Settings,
-	HelpCircle,
-	LogOut,
-	Calendar,
-	Users,
-	Activity,
-	FileText,
 	Filter,
 	Plus,
 	Send,
@@ -44,8 +36,12 @@ import {
 	MessageSquare,
 	Clock,
 	User,
-	Droplets,
+	Bell,
+	Settings,
+	LogOut,
+	FileText,
 } from 'lucide-react';
+import { getAdminSidebarItems, getAdminUserInfo } from '@/lib/utils/admin-layout';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -56,23 +52,8 @@ export default function AdminNotifications() {
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 
-	const sidebarItems = [
-		{ icon: Activity, label: 'Dashboard', href: '/admin/dashboard' },
-		{ icon: Calendar, label: 'Appointments', href: '/admin/appointments' },
-		{ icon: Droplets, label: 'Blood Bank', href: '/admin/blood-bank' },
-		{ icon: Users, label: 'Doctors', href: '/admin/doctors' },
-		{ icon: Users, label: 'Patients', href: '/admin/patients' },
-		{ icon: FileText, label: 'Feedback Analytics', href: '/admin/feedback' },
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/admin/notifications',
-			active: true,
-			badge: '5',
-		},
-		{ icon: Settings, label: 'Settings', href: '/admin/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/admin/help' },
-	];
+	const sidebarItems = getAdminSidebarItems('notifications');
+	const userInfo = getAdminUserInfo({ first_name: 'Admin', last_name: 'User' });
 
 	const [notifications, setNotifications] = useState([
 		{
