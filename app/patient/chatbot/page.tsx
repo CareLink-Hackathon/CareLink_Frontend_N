@@ -415,12 +415,6 @@ export default function PatientChatbot() {
 							</div>
 						</div>
 					</div>
-								<Button variant="ghost" size="icon">
-									<Settings className="w-4 h-4" />
-								</Button>
-							</div>
-						</div>
-					</div>
 
 					{/* Error Display */}
 					{error && (
@@ -701,6 +695,7 @@ export default function PatientChatbot() {
 						</div>
 					</div>
 				</div>
+			</div>
 			</ResponsiveDashboardLayout>
 		</ProtectedRoute>
 	);
