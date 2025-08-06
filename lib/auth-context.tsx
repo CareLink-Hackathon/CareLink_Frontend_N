@@ -14,6 +14,7 @@ interface AuthContextType {
 	) => Promise<void>;
 	signup: (userData: any) => Promise<void>;
 	logout: () => void;
+	refreshUser: () => void;
 	isAuthenticated: boolean;
 }
 
@@ -28,6 +29,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		const currentUser = authService.getCurrentUser();
 		setUser(currentUser);
 		setLoading(false);
+
+		// Listen for localStorage changes to update user state
+		const handleStorageChange = () => {
+			const updatedUser = authService.getCurrentUser();
+			setUser(updatedUser);
+		};
+
+		// Add event listener for storage changes
+		window.addEventListener('storage', handleStorageChange);
+		
+		// Also check for changes on focus (when user comes back to tab)
+		window.addEventListener('focus', handleStorageChange);
+
+		return () => {
+			window.removeEventListener('storage', handleStorageChange);
+			window.removeEventListener('focus', handleStorageChange);
+		};
 	}, []);
 
 	const login = async (
@@ -69,13 +87,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		window.location.href = '/login';
 	};
 
+	const refreshUser = () => {
+		const currentUser = authService.getCurrentUser();
+		setUser(currentUser);
+	};
+
+	const isAuthenticated = user !== null;
+
 	const value = {
 		user,
 		loading,
 		login,
 		signup,
 		logout,
-		isAuthenticated: user !== null,
+		refreshUser,
+		isAuthenticated,
 	};
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

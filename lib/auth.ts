@@ -50,14 +50,38 @@ export class AuthService {
 	// Login method
 	async login(data: LoginRequest): Promise<User> {
 		try {
-			const response = await apiClient.post<User>('/login', data);
+			console.log('🚀 AuthService - Login request:', { 
+				credential: data.credential, 
+				account_type: data.account_type 
+			});
+			
+			const response = await apiClient.post<any>('/login', data);
+			console.log('📦 AuthService - Raw login response from backend:', response);
+
+			// Transform the response to match our User interface
+			const user: User = {
+				...response,
+				_id: response.user_id || response._id,
+				account_type: response.role === 'admin' ? 'hospital' : response.role as any,
+				role: response.role,
+				phone_number: response.phone_number || '',
+				language: response.language || 'en',
+				user_id: response.user_id,
+				redirect_path: response.redirect_path,
+				specialty: response.specialty,
+				hospital_name: response.hospital_name,
+				isAdmin: response.role === 'admin'
+			};
+
+			console.log('🔄 AuthService - Transformed user object:', user);
 
 			// Save user data and token
-			this.user = response;
-			this.saveUserToLocalStorage(response);
+			this.user = user;
+			this.saveUserToLocalStorage(user);
 
-			return response;
+			return user;
 		} catch (error) {
+			console.error('❌ AuthService - Login error:', error);
 			if (error instanceof ApiError) {
 				// Handle specific API errors
 				if (error.status === 401) {
@@ -81,6 +105,24 @@ export class AuthService {
 
 	// Get current user
 	getCurrentUser(): User | null {
+		// Always re-read from localStorage to get the latest data
+		if (typeof window !== 'undefined') {
+			const savedUser = localStorage.getItem('carelink_user');
+			if (savedUser) {
+				try {
+					this.user = JSON.parse(savedUser);
+					console.log('👤 AuthService - getCurrentUser from localStorage:', this.user);
+					return this.user;
+				} catch (error) {
+					console.error('❌ AuthService - Error parsing saved user data:', error);
+					localStorage.removeItem('carelink_user');
+					this.user = null;
+				}
+			} else {
+				console.log('❌ AuthService - No saved user found in localStorage');
+				this.user = null;
+			}
+		}
 		return this.user;
 	}
 

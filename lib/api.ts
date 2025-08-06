@@ -32,11 +32,16 @@ export class ApiClient {
 		options: RequestInit = {}
 	): Promise<T> {
 		const url = `${this.baseURL}${endpoint}`;
+		console.log('API Request URL:', url);
+		console.log('API Base URL:', this.baseURL);
 
 		// Build headers properly
-		const headers: Record<string, string> = {
-			'Content-Type': 'application/json',
-		};
+		const headers: Record<string, string> = {};
+
+		// Only set Content-Type for non-FormData requests
+		if (!(options.body instanceof FormData)) {
+			headers['Content-Type'] = 'application/json';
+		}
 
 		// Add any passed headers
 		if (options.headers) {
@@ -114,6 +119,23 @@ export class ApiClient {
 			method: 'POST',
 			body: body,
 			headers,
+		});
+	}
+
+	async postFile<T>(
+		endpoint: string,
+		formData: FormData,
+		headers?: Record<string, string>
+	): Promise<T> {
+		// For file uploads, don't stringify the data and don't set Content-Type
+		const uploadHeaders = headers ? { ...headers } : {};
+		// Remove Content-Type to let browser set it with boundary for FormData
+		delete uploadHeaders['Content-Type'];
+		
+		return this.request<T>(endpoint, {
+			method: 'POST',
+			body: formData,
+			headers: uploadHeaders,
 		});
 	}
 
@@ -201,10 +223,110 @@ export const feedbackAPI = {
 
 // Blood Bank API methods
 export const bloodBankAPI = {
+	// Legacy endpoints (for backward compatibility)
 	ingestDonorData: (data: any) => apiClient.post<{ status: string; message: string }>('/ingest', data),
 	predictDemand: (data: any) => apiClient.post<any[]>('/predict', data),
 	getInventoryStatus: () => apiClient.get<any[]>('/inventory'),
 	optimizeInventory: (data: any) => apiClient.post<any[]>('/optimize', data),
+
+	// New admin-specific endpoints
+	// Donor management
+	getDonors: (adminId: string, params?: { page?: number; limit?: number; blood_type?: string; status?: string }) => {
+		const queryParams = new URLSearchParams();
+		if (params?.page) queryParams.append('page', params.page.toString());
+		if (params?.limit) queryParams.append('limit', params.limit.toString());
+		if (params?.blood_type) queryParams.append('blood_type', params.blood_type);
+		if (params?.status) queryParams.append('status', params.status);
+		const query = queryParams.toString();
+		return apiClient.get(`/admin/${adminId}/blood-bank/donors${query ? `?${query}` : ''}`);
+	},
+	createDonor: (adminId: string, donorData: any) => 
+		apiClient.post(`/admin/${adminId}/blood-bank/donors`, donorData),
+	getDonor: (adminId: string, donorId: string) => 
+		apiClient.get(`/admin/${adminId}/blood-bank/donors/${donorId}`),
+	updateDonor: (adminId: string, donorId: string, donorData: any) => 
+		apiClient.put(`/admin/${adminId}/blood-bank/donors/${donorId}`, donorData),
+	deleteDonor: (adminId: string, donorId: string) => 
+		apiClient.delete(`/admin/${adminId}/blood-bank/donors/${donorId}`),
+
+	// Inventory management
+	getAdminInventory: (adminId: string) => 
+		apiClient.get(`/admin/${adminId}/blood-bank/inventory`),
+	updateInventory: (adminId: string, inventoryData: any) => 
+		apiClient.put(`/admin/${adminId}/blood-bank/inventory`, inventoryData),
+
+	// Statistics
+	getBloodBankStats: (adminId: string) => 
+		apiClient.get(`/admin/${adminId}/blood-bank/stats`),
+
+	// Blood requests
+	getBloodRequests: (adminId: string, params?: { status?: string; page?: number; limit?: number }) => {
+		const queryParams = new URLSearchParams();
+		if (params?.status) queryParams.append('status', params.status);
+		if (params?.page) queryParams.append('page', params.page.toString());
+		if (params?.limit) queryParams.append('limit', params.limit.toString());
+		const query = queryParams.toString();
+		return apiClient.get(`/admin/${adminId}/blood-bank/requests${query ? `?${query}` : ''}`);
+	},
+	createBloodRequest: (adminId: string, requestData: any) => 
+		apiClient.post(`/admin/${adminId}/blood-bank/requests`, requestData),
+	updateBloodRequestStatus: (adminId: string, requestId: string, status: string) => 
+		apiClient.put(`/admin/${adminId}/blood-bank/requests/${requestId}`, { status }),
+};
+
+// Admin API methods
+export const adminAPI = {
+	// Dashboard
+	getDashboardStats: (adminId: string) => apiClient.get(`/admin/${adminId}/dashboard-stats`),
+
+	// Appointments
+	getAllAppointments: (adminId: string) => apiClient.get(`/admin/${adminId}/appointments`),
+	acceptAppointment: (adminId: string, appointmentId: string) =>
+		apiClient.post(`/admin/accept_appointment/${adminId}/${appointmentId}`, {}),
+	assignDoctorToAppointment: (adminId: string, appointmentId: string, doctorId: string) =>
+		apiClient.put(`/admin/${adminId}/appointments/${appointmentId}/assign`, { doctor_id: doctorId }),
+	updateAppointmentStatus: (adminId: string, appointmentId: string, status: string) =>
+		apiClient.put(`/admin/${adminId}/appointments/${appointmentId}/status`, { status }),
+
+	// Doctors
+	getDoctors: () => apiClient.get('/admin/doctors'),
+	createDoctor: (doctorData: any) => apiClient.post('/admin/create-doctor', doctorData),
+	updateDoctor: (adminId: string, doctorId: string, data: any) =>
+		apiClient.put(`/admin/${adminId}/doctors/${doctorId}`, data),
+	deleteDoctor: (adminId: string, doctorId: string) =>
+		apiClient.delete(`/admin/${adminId}/doctors/${doctorId}`),
+	suspendDoctor: (adminId: string, doctorId: string) =>
+		apiClient.put(`/admin/${adminId}/doctors/${doctorId}/suspend`, {}),
+
+	// Patients
+	getPatients: (adminId: string) => apiClient.get(`/admin/${adminId}/patients`),
+	updatePatient: (adminId: string, patientId: string, data: any) =>
+		apiClient.put(`/admin/${adminId}/patients/${patientId}`, data),
+	deletePatient: (adminId: string, patientId: string) =>
+		apiClient.delete(`/admin/${adminId}/patients/${patientId}`),
+	suspendPatient: (adminId: string, patientId: string) =>
+		apiClient.put(`/admin/${adminId}/patients/${patientId}/suspend`, {}),
+	activatePatient: (adminId: string, patientId: string) =>
+		apiClient.put(`/admin/${adminId}/patients/${patientId}/activate`, {}),
+
+	// Departments
+	getDepartments: () => apiClient.get('/admin/departments'),
+	createDepartment: (data: {name: string; description?: string}) =>
+		apiClient.post('/admin/departments', data),
+	updateDepartment: (departmentId: string, data: {name: string; description?: string}) =>
+		apiClient.put(`/admin/departments/${departmentId}`, data),
+	deleteDepartment: (departmentId: string) =>
+		apiClient.delete(`/admin/departments/${departmentId}`),
+
+	// Feedback
+	getFeedbackAnalytics: () => apiClient.get('/feedback/'),
+	updateFeedbackStatus: (adminId: string, feedbackId: string, status: string) =>
+		apiClient.put(`/admin/${adminId}/feedback/${feedbackId}/status`, { status }),
+
+	// Notifications
+	getNotifications: (adminId: string) => apiClient.get(`/admin/${adminId}/notifications`),
+	markNotificationAsRead: (adminId: string, notificationId: string) =>
+		apiClient.put(`/admin/${adminId}/notifications/${notificationId}/read`, {}),
 };
 
 // Patient-specific API methods (comprehensive)
