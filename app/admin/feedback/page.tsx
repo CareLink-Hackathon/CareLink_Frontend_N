@@ -219,7 +219,7 @@ export default function AdminFeedback() {
 							<div>
 								<p className="text-sm text-blue-600 font-medium">Total Feedback</p>
 								<p className="text-lg sm:text-2xl font-bold text-blue-900">
-									{loading ? '...' : analytics?.overview.total_feedback || 0}
+									{loading ? '...' : analytics?.overview?.total_feedback || 0}
 								</p>
 							</div>
 							<MessageSquare className="w-8 h-8 text-blue-600" />
@@ -233,10 +233,10 @@ export default function AdminFeedback() {
 							<div>
 								<p className="text-sm text-green-600 font-medium">Positive Sentiment</p>
 								<p className="text-lg sm:text-2xl font-bold text-green-900">
-									{loading ? '...' : analytics?.overview.overall_sentiment.positive || 0}
+									{loading ? '...' : analytics?.overview?.overall_sentiment?.positive || 0}
 								</p>
 								<p className="text-xs text-green-600">
-									{loading ? '...' : `${getSentimentPercentage(analytics?.overview.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'positive')}% of total`}
+									{loading ? '...' : `${getSentimentPercentage(analytics?.overview?.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'positive')}% of total`}
 								</p>
 							</div>
 							<ThumbsUp className="w-8 h-8 text-green-600" />
@@ -250,10 +250,10 @@ export default function AdminFeedback() {
 							<div>
 								<p className="text-sm text-red-600 font-medium">Negative Sentiment</p>
 								<p className="text-lg sm:text-2xl font-bold text-red-900">
-									{loading ? '...' : analytics?.overview.overall_sentiment.negative || 0}
+									{loading ? '...' : analytics?.overview?.overall_sentiment?.negative || 0}
 								</p>
 								<p className="text-xs text-red-600">
-									{loading ? '...' : `${getSentimentPercentage(analytics?.overview.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'negative')}% of total`}
+									{loading ? '...' : `${getSentimentPercentage(analytics?.overview?.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'negative')}% of total`}
 								</p>
 							</div>
 							<ThumbsDown className="w-8 h-8 text-red-600" />
@@ -305,11 +305,11 @@ export default function AdminFeedback() {
 											<div className="flex items-center justify-between">
 												<span className="text-sm font-medium text-green-600">Positive</span>
 												<span className="text-sm text-gray-600">
-													{analytics?.overview.overall_sentiment.positive || 0}
+													{analytics?.overview?.overall_sentiment?.positive || 0}
 												</span>
 											</div>
 											<Progress 
-												value={getSentimentPercentage(analytics?.overview.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'positive')} 
+												value={getSentimentPercentage(analytics?.overview?.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'positive')} 
 												className="h-2 bg-green-100" 
 											/>
 										</div>
@@ -317,11 +317,11 @@ export default function AdminFeedback() {
 											<div className="flex items-center justify-between">
 												<span className="text-sm font-medium text-red-600">Negative</span>
 												<span className="text-sm text-gray-600">
-													{analytics?.overview.overall_sentiment.negative || 0}
+													{analytics?.overview?.overall_sentiment?.negative || 0}
 												</span>
 											</div>
 											<Progress 
-												value={getSentimentPercentage(analytics?.overview.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'negative')} 
+												value={getSentimentPercentage(analytics?.overview?.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'negative')} 
 												className="h-2 bg-red-100" 
 											/>
 										</div>
@@ -329,11 +329,11 @@ export default function AdminFeedback() {
 											<div className="flex items-center justify-between">
 												<span className="text-sm font-medium text-gray-600">Neutral</span>
 												<span className="text-sm text-gray-600">
-													{analytics?.overview.overall_sentiment.neutral || 0}
+													{analytics?.overview?.overall_sentiment?.neutral || 0}
 												</span>
 											</div>
 											<Progress 
-												value={getSentimentPercentage(analytics?.overview.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'neutral')} 
+												value={getSentimentPercentage(analytics?.overview?.overall_sentiment || { positive: 0, negative: 0, neutral: 0 }, 'neutral')} 
 												className="h-2 bg-gray-100" 
 											/>
 										</div>
