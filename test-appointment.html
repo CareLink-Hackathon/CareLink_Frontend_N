@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Appointments API</title>
+</head>
+<body>
+    <h1>Test Appointments API</h1>
+    <button onclick="loginAndTestDoctors()">Login and Test Doctors API</button>
+    <pre id="output"></pre>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        const output = document.getElementById('output');
+
+        function log(message) {
+            output.textContent += message + '\n';
+            console.log(message);
+        }
+
+        async function loginAndTestDoctors() {
+            try {
+                output.textContent = '';
+                log('🚀 Starting login and test...');
+
+                // Step 1: Login
+                log('📝 Logging in...');
+                const loginResponse = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        credential: 'jeffyouashi2@gmail.com',
+                        password: 'carelink237',
+                        account_type: 'patient'
+                    })
+                });
+
+                if (!loginResponse.ok) {
+                    throw new Error(`Login failed: ${loginResponse.status}`);
+                }
+
+                const loginData = await loginResponse.json();
+                log('✅ Login successful!');
+                log(`👤 User ID: ${loginData.user_id}`);
+                log(`🔑 Token: ${loginData.token.substring(0, 20)}...`);
+
+                // Step 2: Test doctors API with token
+                log('\n📋 Testing doctors API...');
+                const doctorsResponse = await fetch(`${API_URL}/doctors`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${loginData.token}`
+                    }
+                });
+
+                if (!doctorsResponse.ok) {
+                    throw new Error(`Doctors API failed: ${doctorsResponse.status}`);
+                }
+
+                const doctorsData = await doctorsResponse.json();
+                log('✅ Doctors API successful!');
+                log(`👨‍⚕️ Number of doctors: ${doctorsData.doctors?.length || 0}`);
+                
+                if (doctorsData.doctors && doctorsData.doctors.length > 0) {
+                    log('\n📋 Doctors list:');
+                    doctorsData.doctors.forEach((doctor, index) => {
+                        log(`${index + 1}. ${doctor.full_name} - ${doctor.specialty} (${doctor.department_name})`);
+                    });
+                } else {
+                    log('❌ No doctors found!');
+                }
+
+                // Store token in localStorage for testing
+                localStorage.setItem('test_token', loginData.token);
+                localStorage.setItem('test_user', JSON.stringify(loginData));
+                log('\n💾 Token and user data stored in localStorage for testing');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

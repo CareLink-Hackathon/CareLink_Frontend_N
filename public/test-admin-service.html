@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Service Test</title>
+</head>
+<body>
+    <h1>Testing Admin Service Connection</h1>
+    <div id="results"></div>
+    
+    <script>
+        console.log('=== Direct Admin Service Test ===');
+        
+        // Test direct API call
+        async function testDirectAPI() {
+            const apiUrl = 'http://localhost:8000/admin/test123/dashboard-stats';
+            console.log('Testing direct API call to:', apiUrl);
+            
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                console.log('✅ Direct API call successful:', data);
+                document.getElementById('results').innerHTML += `
+                    <p>✅ Direct API call successful</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                return data;
+            } catch (error) {
+                console.error('❌ Direct API call failed:', error);
+                document.getElementById('results').innerHTML += `
+                    <p>❌ Direct API call failed: ${error.message}</p>
+                `;
+            }
+        }
+        
+        // Test API client
+        async function testAPIClient() {
+            console.log('Testing API client...');
+            
+            // We can't import the API client here, but we can simulate it
+            const baseURL = 'http://localhost:8000';
+            const endpoint = '/admin/test123/dashboard-stats';
+            const url = baseURL + endpoint;
+            
+            console.log('API Client URL:', url);
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('API Client Response status:', response.status);
+                const data = await response.json();
+                console.log('✅ API Client call successful:', data);
+                document.getElementById('results').innerHTML += `
+                    <p>✅ API Client simulation successful</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('❌ API Client simulation failed:', error);
+                document.getElementById('results').innerHTML += `
+                    <p>❌ API Client simulation failed: ${error.message}</p>
+                `;
+            }
+        }
+        
+        // Run tests
+        testDirectAPI();
+        testAPIClient();
+    </script>
+</body>
+</html>
