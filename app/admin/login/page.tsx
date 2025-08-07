@@ -2,7 +2,7 @@
 
 import type React from 'react';
 
-import { useState, Suspense } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateEmail } from '@/lib/auth';
 import { useAuth } from '@/lib/auth-context';
 
-function AdminLoginForm() {
+export default function AdminLogin() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [formData, setFormData] = useState({
 		email: '',
@@ -242,13 +242,5 @@ function AdminLoginForm() {
 				</div>
 			</div>
 		</div>
-	);
-}
-
-export default function AdminLogin() {
-	return (
-		<Suspense fallback={<div>Loading...</div>}>
-			<AdminLoginForm />
-		</Suspense>
 	);
 }
