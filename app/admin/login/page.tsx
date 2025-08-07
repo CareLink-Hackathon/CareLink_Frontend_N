@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateEmail } from '@/lib/auth';
 import { useAuth } from '@/lib/auth-context';
+import { API_BASE_URL } from '@/lib/api';
 
 function AdminLoginContent() {
 	const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +59,7 @@ function AdminLoginContent() {
 		}
 
 		try {
-			const response = await fetch('http://localhost:8000/login', {
+			const response = await fetch(`${API_BASE_URL}/login`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

@@ -8,6 +8,7 @@ import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashbo
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { authService } from '@/lib/auth';
+import { API_BASE_URL } from '@/lib/api';
 import {
 	Calendar,
 	MessageSquare,
@@ -88,7 +89,7 @@ function PatientDashboard() {
 		}
 		
 		try {
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/patient/${patientId}/appointments`, {
+			const response = await fetch(`${API_BASE_URL}/patient/${patientId}/appointments`, {
 				headers: getAuthHeaders()
 			});
 			

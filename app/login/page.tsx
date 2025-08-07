@@ -18,6 +18,7 @@ import { Facebook, Chrome, Apple, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { API_BASE_URL } from '@/lib/api';
 
 export default function Login() {
 	const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +41,7 @@ export default function Login() {
 		}
 
 		try {
-			const response = await fetch('http://localhost:8000/login', {
+			const response = await fetch(`${API_BASE_URL}/login`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

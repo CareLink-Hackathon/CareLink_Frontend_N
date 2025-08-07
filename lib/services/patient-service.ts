@@ -239,7 +239,7 @@ export class PatientService {
 	async downloadMedicalRecordPDF(recordId: string): Promise<void> {
 		try {
 			console.log('📄 Downloading PDF for record:', recordId);
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/medical-records/${recordId}/pdf`, {
+			const response = await fetch(`${API_BASE_URL}/api/medical-records/${recordId}/pdf`, {
 				method: 'GET',
 				headers: {
 					'Authorization': `Bearer ${localStorage.getItem('token')}`,

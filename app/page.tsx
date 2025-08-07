@@ -18,6 +18,7 @@ import {
 import { Facebook, Chrome, Apple, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { API_BASE_URL } from '@/lib/api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateEmail, validatePhone, validatePassword } from '@/lib/auth';
 
@@ -109,7 +110,7 @@ export default function CreateAccount() {
 				address: formData.address || null,
 			};
 
-			const response = await fetch('http://localhost:8000/signup', {
+			const response = await fetch(`${API_BASE_URL}/signup`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

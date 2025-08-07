@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { authService } from '@/lib/auth';
+import { API_BASE_URL } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -151,7 +152,7 @@ export default function PatientAppointments() {
 	const fetchDoctors = async () => {
 		try {
 			console.log('🏥 Fetching doctors...');
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/doctors`, {
+			const response = await fetch(`${API_BASE_URL}/doctors`, {
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -179,7 +180,7 @@ export default function PatientAppointments() {
 		
 		try {
 			console.log('📅 Fetching appointments for patient:', patientId);
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/patient/${patientId}/appointments`, {
+			const response = await fetch(`${API_BASE_URL}/patient/${patientId}/appointments`, {
 				headers: getAuthHeaders()
 			});
 			
@@ -204,7 +205,7 @@ export default function PatientAppointments() {
 		if (!doctorId || !date) return;
 		
 		try {
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/doctors/${doctorId}/availability/${date}`, {
+			const response = await fetch(`${API_BASE_URL}/doctors/${doctorId}/availability/${date}`, {
 				headers: getAuthHeaders()
 			});
 			if (response.ok) {
@@ -303,8 +304,8 @@ export default function PatientAppointments() {
 		setSubmitting(true);
 		try {
 			const url = editingAppointment 
-				? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/patient/${patientId}/appointments/${editingAppointment._id}`
-				: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/patient/${patientId}/appointments`;
+				? `${API_BASE_URL}/patient/${patientId}/appointments/${editingAppointment._id}`
+				: `${API_BASE_URL}/patient/${patientId}/appointments`;
 			
 			const method = editingAppointment ? 'PUT' : 'POST';
 			
@@ -383,7 +384,7 @@ export default function PatientAppointments() {
 		if (!patientId) return;
 
 		try {
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/patient/${patientId}/appointments/${appointmentId}`, {
+			const response = await fetch(`${API_BASE_URL}/patient/${patientId}/appointments/${appointmentId}`, {
 				method: 'DELETE',
 				headers: getAuthHeaders(),
 			});

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { API_BASE_URL } from '@/lib/api';
 import {
 	Activity,
 	Calendar,
@@ -79,7 +80,7 @@ export default function PatientFeedback() {
 	useEffect(() => {
 		const fetchDoctors = async () => {
 			try {
-				const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/doctors`, {
+				const response = await fetch(`${API_BASE_URL}/doctors`, {
 					headers: {
 						'Content-Type': 'application/json'
 					}
@@ -213,7 +214,7 @@ export default function PatientFeedback() {
 		setIsSubmitting(true);
 
 		try {
-			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/feedback`, {
+			const response = await fetch(`${API_BASE_URL}/feedback`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

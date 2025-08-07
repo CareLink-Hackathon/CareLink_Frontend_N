@@ -12,6 +12,7 @@ import { AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateEmail, validatePhone, validatePassword } from '@/lib/auth';
+import { API_BASE_URL } from '@/lib/api';
 
 export default function AdminSignup() {
 	const [isLoading, setIsLoading] = useState(false);
@@ -95,7 +96,7 @@ export default function AdminSignup() {
 				hospital_name: formData.hospitalName,
 			};
 
-			const response = await fetch('http://localhost:8000/admin/signup', {
+			const response = await fetch(`${API_BASE_URL}/admin/signup`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
