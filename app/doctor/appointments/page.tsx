@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -75,7 +75,7 @@ interface DoctorProfile {
 	qualification: string;
 }
 
-function DoctorAppointments() {
+function DoctorAppointmentsContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { user } = useAuth();
@@ -706,6 +706,14 @@ function DoctorAppointments() {
 				)}
 			</ResponsiveDashboardLayout>
 		</ProtectedRoute>
+	);
+}
+
+function DoctorAppointments() {
+	return (
+		<Suspense fallback={<div>Loading...</div>}>
+			<DoctorAppointmentsContent />
+		</Suspense>
 	);
 }
 
