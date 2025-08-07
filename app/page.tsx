@@ -48,7 +48,6 @@ export default function CreateAccount() {
 	};
 
 	const validateForm = () => {
-		// Check required fields
 		if (
 			!formData.firstName.trim() ||
 			!formData.lastName.trim() ||
