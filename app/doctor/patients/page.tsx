@@ -23,9 +23,6 @@ import { useAuth } from '@/lib/auth-context';
 import { doctorService } from '@/lib/services/doctor-service';
 import {
   Search,
-  Bell,
-  Settings,
-  HelpCircle,
   Calendar,
   Users,
   Activity,
@@ -207,9 +204,6 @@ export default function DoctorPatients() {
     { icon: Calendar, label: "My Appointments", href: "/doctor/appointments" },
     { icon: Users, label: "My Patients", href: "/doctor/patients", active: true },
     { icon: FileText, label: "Medical Records", href: "/doctor/records" },
-    { icon: Bell, label: "Notifications", href: "/doctor/notifications" },
-    { icon: Settings, label: "Settings", href: "/doctor/settings" },
-    { icon: HelpCircle, label: "Help Center", href: "/doctor/help" },
   ];
 
   const userInfo = {

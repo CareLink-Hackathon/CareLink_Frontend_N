@@ -17,9 +17,6 @@ import {
 	Calendar,
 	FileText,
 	Star,
-	Bell,
-	Settings,
-	HelpCircle,
 	MessageSquare,
 	Send,
 	Plus,
@@ -90,19 +87,20 @@ export default function PatientChatbot() {
 	const audioChunksRef = useRef<Blob[]>([]);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
+	// Debug user and context state
+	useEffect(() => {
+		console.log('User:', user);
+		console.log('Current chat:', currentChat);
+		console.log('Chats:', chats);
+		console.log('Is loading:', isLoading);
+		console.log('Error:', error);
+	}, [user, currentChat, chats, isLoading, error]);
+
 	const sidebarItems = [
 		{ icon: Activity, label: 'Dashboard', href: '/patient/dashboard' },
 		{ icon: Calendar, label: 'Appointments', href: '/patient/appointments' },
 		{ icon: FileText, label: 'Medical Records', href: '/patient/records' },
 		{ icon: Star, label: 'Reviews & Feedback', href: '/patient/feedback' },
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/patient/notifications',
-			badge: '3',
-		},
-		{ icon: Settings, label: 'Settings', href: '/patient/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/patient/help' },
 	];
 
 	// User info for sidebar
@@ -125,10 +123,27 @@ export default function PatientChatbot() {
 
 	// Create new chat
 	const handleNewChat = async () => {
-		if (!message.trim()) return;
+		console.log('handleNewChat called');
 		
-		const chatName = patientService.generateDefaultChatName(message);
+		// Check if we have any content to send
+		if (!message.trim() && uploadedFiles.length === 0 && recordedAudios.length === 0) {
+			console.log('No content for new chat');
+			return;
+		}
+		
+		// Generate chat name based on available content
+		let chatName = 'New Chat';
+		if (message.trim()) {
+			chatName = patientService.generateDefaultChatName(message);
+		} else if (uploadedFiles.length > 0) {
+			chatName = `Document Chat - ${uploadedFiles[0].file.name}`;
+		} else if (recordedAudios.length > 0) {
+			chatName = 'Voice Chat';
+		}
+		
+		console.log('Creating new chat with name:', chatName);
 		const chatId = await createNewChat(chatName);
+		console.log('New chat ID:', chatId);
 		
 		if (chatId) {
 			await handleSendMessage(chatId);
@@ -137,46 +152,61 @@ export default function PatientChatbot() {
 
 	// Send message to existing chat with enhanced features
 	const handleSendMessage = async (chatId?: string) => {
+		console.log('handleSendMessage called with chatId:', chatId);
 		const targetChatId = chatId || currentChat?.chat_id;
+		console.log('Target chat ID:', targetChatId);
+		
 		if (!targetChatId || (!message.trim() && uploadedFiles.length === 0 && recordedAudios.length === 0)) {
+			console.log('No chat ID or no content to send');
 			return;
 		}
 
+		console.log('Setting isSending to true');
 		setIsSending(true);
 		
 		try {
 			// Use enhanced messaging if we have files or audio
 			if (uploadedFiles.length > 0 || recordedAudios.length > 0) {
-				// Process multiple files and audio recordings
-				for (const uploadedFile of uploadedFiles) {
-					const success = await sendEnhancedMessage(targetChatId, {
-						message: message || `Processing ${uploadedFile.file.name}`,
-						documentFile: uploadedFile.file
-					});
-					if (!success) break;
+				console.log('Using enhanced messaging');
+				// Send one enhanced message with all content
+				const firstDocument = uploadedFiles.length > 0 ? uploadedFiles[0].file : undefined;
+				const firstAudio = recordedAudios.length > 0 ? recordedAudios[0].blob : undefined;
+				
+				// Create a comprehensive message
+				let combinedMessage = message || '';
+				
+				// Add file descriptions to message
+				if (uploadedFiles.length > 0) {
+					const fileList = uploadedFiles.map(f => f.file.name).join(', ');
+					combinedMessage += combinedMessage ? '\n\n' : '';
+					combinedMessage += `Documents uploaded: ${fileList}`;
 				}
 				
-				for (const recordedAudio of recordedAudios) {
-					const success = await sendEnhancedMessage(targetChatId, {
-						message: message || `Processing audio recording`,
-						audioBlob: recordedAudio.blob,
-						audioLanguage: selectedLanguage
-					});
-					if (!success) break;
+				if (recordedAudios.length > 0) {
+					combinedMessage += combinedMessage ? '\n\n' : '';
+					combinedMessage += `Voice message recorded (${selectedLanguage.toUpperCase()})`;
 				}
+
+				console.log('Sending enhanced message:', combinedMessage);
+				const success = await sendEnhancedMessage(targetChatId, {
+					message: combinedMessage,
+					documentFile: firstDocument,
+					audioBlob: firstAudio,
+					audioLanguage: selectedLanguage
+				});
 				
-				// If we have message text without files/audio, send it separately
-				if (message.trim() && uploadedFiles.length === 0 && recordedAudios.length === 0) {
-					await sendMessage(targetChatId, message);
+				console.log('Enhanced message result:', success);
+				if (success) {
+					setMessage('');
+					setUploadedFiles([]);
+					setRecordedAudios([]);
 				}
-				
-				setMessage('');
-				setUploadedFiles([]);
-				setRecordedAudios([]);
 			} else {
+				console.log('Using regular messaging');
 				// Use regular messaging for text-only
 				const success = await sendMessage(targetChatId, message);
 				
+				console.log('Regular message result:', success);
 				if (success) {
 					setMessage('');
 				}
@@ -185,19 +215,33 @@ export default function PatientChatbot() {
 			console.error('Error sending message:', error);
 		}
 		
+		console.log('Setting isSending to false');
 		setIsSending(false);
 	};
 
 	// Handle sending message or creating new chat
 	const handleSubmit = async () => {
+		console.log('handleSubmit called');
+		console.log('Message:', message);
+		console.log('Uploaded files:', uploadedFiles);
+		console.log('Recorded audios:', recordedAudios);
+		console.log('Current chat:', currentChat);
+		
 		if (!message.trim() && uploadedFiles.length === 0 && recordedAudios.length === 0) {
+			console.log('No content to send');
 			return;
 		}
 
-		if (currentChat) {
-			await handleSendMessage();
-		} else {
-			await handleNewChat();
+		try {
+			if (currentChat) {
+				console.log('Sending to existing chat:', currentChat.chat_id);
+				await handleSendMessage();
+			} else {
+				console.log('Creating new chat');
+				await handleNewChat();
+			}
+		} catch (error) {
+			console.error('Error in handleSubmit:', error);
 		}
 	};
 
@@ -329,21 +373,35 @@ export default function PatientChatbot() {
 					};
 
 					// Simulate initial upload progress
-					updateProgress(30);
+					updateProgress(20);
 					
-					// Process the document
-					const extractedText = await processDocument(uploadFile.file);
-					
-					updateProgress(80);
-					
-					if (extractedText) {
-						// Add extracted text as message preview
-						setMessage((prev) => 
-							prev + (prev ? '\n\n' : '') + 
-							`[Document: ${uploadFile.file.name}]\n${extractedText.substring(0, 200)}${extractedText.length > 200 ? '...' : ''}`
-						);
-						updateProgress(100);
+					// Process the document if we have a current chat
+					if (currentChat) {
+						const extractedText = await processDocument(uploadFile.file);
 						
+						updateProgress(80);
+						
+						if (extractedText) {
+							// Add extracted text as message preview
+							setMessage((prev) => 
+								prev + (prev ? '\n\n' : '') + 
+								`[Document: ${uploadFile.file.name}]\n${extractedText.substring(0, 300)}${extractedText.length > 300 ? '...' : ''}`
+							);
+							updateProgress(100);
+							
+							setUploadedFiles((prev) =>
+								prev.map((f) =>
+									f.id === uploadFile.id
+										? { ...f, status: 'completed', progress: 100 }
+										: f
+								)
+							);
+						} else {
+							throw new Error('Failed to extract text from document');
+						}
+					} else {
+						// If no chat, just mark as ready for processing
+						updateProgress(100);
 						setUploadedFiles((prev) =>
 							prev.map((f) =>
 								f.id === uploadFile.id
@@ -351,8 +409,6 @@ export default function PatientChatbot() {
 									: f
 							)
 						);
-					} else {
-						throw new Error('Failed to extract text from document');
 					}
 				} catch (error) {
 					console.error('Error processing document:', error);

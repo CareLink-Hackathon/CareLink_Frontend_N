@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend Connection Test</title>
+</head>
+<body>
+    <h1>Testing Backend Connection</h1>
+    <button onclick="testBackend()">Test Backend Health</button>
+    <button onclick="testEnhancedEndpoint()">Test Enhanced Endpoint</button>
+    <div id="result"></div>
+
+    <script>
+        async function testBackend() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing backend...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    result.innerHTML = `✅ Backend is healthy: ${JSON.stringify(data)}`;
+                } else {
+                    result.innerHTML = `❌ Backend health check failed: ${response.status}`;
+                }
+            } catch (error) {
+                result.innerHTML = `❌ Connection error: ${error.message}`;
+            }
+        }
+
+        async function testEnhancedEndpoint() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing enhanced endpoint...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('message', 'Test message from frontend');
+                formData.append('audio_language', 'en');
+                
+                const response = await fetch('http://localhost:8000/patient/test_user/chat/test_chat/enhanced', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Response status:', response.status);
+                const text = await response.text();
+                console.log('Response text:', text);
+                
+                if (response.ok) {
+                    result.innerHTML = `✅ Enhanced endpoint works: ${text}`;
+                } else {
+                    result.innerHTML = `❌ Enhanced endpoint failed (${response.status}): ${text}`;
+                }
+            } catch (error) {
+                result.innerHTML = `❌ Enhanced endpoint error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

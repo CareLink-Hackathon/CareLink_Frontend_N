@@ -14,9 +14,6 @@ import {
 	FileText,
 	UserCheck,
 	Clock,
-	Bell,
-	Settings,
-	HelpCircle,
 	AlertTriangle,
 	Droplets,
 	Building2,
@@ -181,14 +178,6 @@ function AdminDashboard() {
 		{ icon: Users, label: 'Doctors', href: '/admin/doctors' },
 		{ icon: Users, label: 'Patients', href: '/admin/patients' },
 		{ icon: FileText, label: 'Feedback Analytics', href: '/admin/feedback' },
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/admin/notifications',
-			badge: '0', // Will be updated when notifications are implemented
-		},
-		{ icon: Settings, label: 'Settings', href: '/admin/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/admin/help' },
 	];
 
 	const userInfo = {

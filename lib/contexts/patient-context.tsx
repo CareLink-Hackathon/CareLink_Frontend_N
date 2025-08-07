@@ -110,10 +110,23 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
 
 	// Chat operations
 	const createNewChat = async (chatName: string): Promise<string | null> => {
-		if (!user?._id) return null;
+		console.log('createNewChat called with:', chatName);
+		console.log('User object:', user);
+		console.log('User ID (user._id):', user?._id);
+		console.log('User ID (user.user_id):', user?.user_id);
+		
+		if (!user?.user_id && !user?._id) {
+			console.log('No user ID available');
+			return null;
+		}
+
+		// Use user_id or _id, whichever is available
+		const userId = user.user_id || user._id;
+		console.log('Using userId:', userId);
 
 		return withLoading(async () => {
-			const response = await patientService.createNewChat(user._id, chatName);
+			const response = await patientService.createNewChat(userId, chatName);
+			console.log('createNewChat response:', response);
 
 			// Add new chat to state
 			const newChat: Chat = {
@@ -138,11 +151,12 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
 		chatId: string,
 		message: string
 	): Promise<boolean> => {
-		if (!user?._id) return false;
+		const userId = user?.user_id || user?._id;
+		if (!userId) return false;
 
 		const success = await withLoading(async () => {
 			const response = await patientService.sendChatMessage(
-				user._id,
+				userId,
 				chatId,
 				message
 			);
@@ -195,11 +209,12 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
 			documentFile?: File;
 		}
 	): Promise<boolean> => {
-		if (!user?._id) return false;
+		const userId = user?.user_id || user?._id;
+		if (!userId) return false;
 
 		const success = await withLoading(async () => {
 			const response = await patientService.sendEnhancedChatMessage(
-				user._id,
+				userId,
 				chatId,
 				options
 			);

@@ -19,9 +19,6 @@ import {
 	Thermometer,
 	Weight,
 	Bot,
-	Bell,
-	Settings,
-	HelpCircle,
 	Loader2,
 	CheckCircle,
 	XCircle,
@@ -172,14 +169,6 @@ function PatientDashboard() {
 		{ icon: Calendar, label: 'Appointments', href: '/patient/appointments' },
 		{ icon: FileText, label: 'Medical Records', href: '/patient/records' },
 		{ icon: Star, label: 'Reviews & Feedback', href: '/patient/feedback' },
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/patient/notifications',
-			badge: '3',
-		},
-		{ icon: Settings, label: 'Settings', href: '/patient/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/patient/help' },
 	];
 
 	const userInfo = {

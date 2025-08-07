@@ -16,9 +16,6 @@ import {
 	Calendar,
 	Star,
 	FileText,
-	Bell,
-	Settings,
-	HelpCircle,
 	Search,
 	Bot,
 	Download,
@@ -106,13 +103,6 @@ export default function PatientMedicalRecords() {
 			active: true,
 		},
 		{ icon: Star, label: 'Reviews & Feedback', href: '/patient/feedback' },
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/patient/notifications',
-		},
-		{ icon: Settings, label: 'Settings', href: '/patient/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/patient/help' },
 	];
 
 	// Load medical records

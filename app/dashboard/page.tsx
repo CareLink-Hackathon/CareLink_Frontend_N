@@ -9,9 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MobileSidebar } from '@/components/ui/mobile-sidebar';
 import {
 	Search,
-	Bell,
-	Settings,
-	HelpCircle,
 	LogOut,
 	Filter,
 	X,
@@ -30,9 +27,6 @@ export default function Dashboard() {
 	const sidebarItems = [
 		{ icon: BarChart3, label: 'Dashboard', href: '/dashboard', active: true },
 		{ icon: Calendar, label: 'Appointments', href: '/appointments' },
-		{ icon: Bell, label: 'Notifications', href: '/notifications', badge: '3' },
-		{ icon: Settings, label: 'Settings', href: '/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/help' },
 	];
 
 	const workers = [
@@ -102,11 +96,6 @@ export default function Dashboard() {
 							>
 								<item.icon className="w-5 h-5" />
 								<span className="flex-1">{item.label}</span>
-								{item.badge && (
-									<Badge className="bg-red-500 text-white text-xs">
-										{item.badge}
-									</Badge>
-								)}
 							</Link>
 						))}
 					</nav>
@@ -146,13 +135,6 @@ export default function Dashboard() {
 							</select>
 							<Button variant="outline" size="sm">
 								User Guide
-							</Button>
-							<Button variant="ghost" size="icon">
-								<Settings className="w-5 h-5" />
-							</Button>
-							<Button variant="ghost" size="icon" className="relative">
-								<Bell className="w-5 h-5" />
-								<div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
 							</Button>
 						</div>
 					</div>

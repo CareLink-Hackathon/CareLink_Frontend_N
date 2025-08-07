@@ -30,12 +30,15 @@ export class PatientService {
 	}
 
 	async sendChatMessage(userId: string, chatId: string, message: string) {
+		console.log('sendChatMessage called with:', { userId, chatId, message });
 		const data: ChatMessageRequest = { message };
-		return await apiClient.post<{
+		const result = await apiClient.post<{
 			response: string;
 			chat_name: string;
 			chat_id: string;
 		}>(`/patient/${userId}/chat/${chatId}`, data);
+		console.log('sendChatMessage result:', result);
+		return result;
 	}
 
 	// Enhanced Chat Operations
@@ -50,6 +53,8 @@ export class PatientService {
 		}
 	) {
 		try {
+			console.log('sendEnhancedChatMessage called with:', { userId, chatId, options });
+			
 			const formData = new FormData();
 			
 			if (options.message) {
@@ -65,23 +70,34 @@ export class PatientService {
 				formData.append('document', options.documentFile);
 			}
 			
-			const response = await fetch(
-				`${API_BASE_URL}/patient/${userId}/chat/${chatId}/enhanced`,
-				{
-					method: 'POST',
-					headers: {
-						'Authorization': `Bearer ${localStorage.getItem('token')}`
-					},
-					body: formData
-				}
-			);
+			const url = `${API_BASE_URL}/patient/${userId}/chat/${chatId}/enhanced`;
+			console.log('Making request to:', url);
+			
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${localStorage.getItem('token')}`
+				},
+				body: formData
+			});
+			
+			console.log('Response status:', response.status);
+			console.log('Response ok:', response.ok);
 			
 			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.detail || 'Enhanced chat request failed');
+				const errorText = await response.text();
+				console.error('Response error text:', errorText);
+				try {
+					const errorData = JSON.parse(errorText);
+					throw new Error(errorData.detail || 'Enhanced chat request failed');
+				} catch {
+					throw new Error(errorText || 'Enhanced chat request failed');
+				}
 			}
 			
-			return await response.json();
+			const result = await response.json();
+			console.log('Response result:', result);
+			return result;
 		} catch (error) {
 			console.error('Enhanced chat error:', error);
 			throw error;
@@ -100,7 +116,7 @@ export class PatientService {
 			formData.append('language', language);
 			
 			const response = await fetch(
-				`${API_BASE_URL}/patient/${userId}/chat/${chatId}/audio`,
+				`${API_BASE_URL}/patient/${userId}/chat/audio/${chatId}`,
 				{
 					method: 'POST',
 					headers: {
@@ -132,7 +148,7 @@ export class PatientService {
 			formData.append('document', documentFile);
 			
 			const response = await fetch(
-				`${API_BASE_URL}/patient/${userId}/chat/${chatId}/document`,
+				`${API_BASE_URL}/patient/${userId}/chat/document/${chatId}`,
 				{
 					method: 'POST',
 					headers: {
