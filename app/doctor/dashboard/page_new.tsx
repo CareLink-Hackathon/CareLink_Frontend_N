@@ -30,40 +30,26 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface DashboardStats {
-	totalAppointments: number;
-	completedAppointments: number;
-	ongoingAppointments: number;
-	upcomingAppointments: number;
-	totalPatients: number;
-	criticalPatients: number;
-	pendingActions: number;
-	monthlyAppointments: Array<{
-		month: string;
-		appointments: number;
-	}>;
-	todayAppointments?: number;
-	thisWeekAppointments?: number;
-	thisMonthAppointments?: number;
-	pendingAppointments?: number;
-	approvedAppointments?: number;
+	total_appointments: number;
+	today_appointments: number;
+	pending_appointments: number;
+	approved_appointments: number;
+	completed_appointments: number;
+	upcoming_appointments: number;
+	this_week_appointments: number;
+	this_month_appointments: number;
+	recent_patients_count: number;
 }
 
-interface Appointment {
+interface TodayAppointment {
 	_id: string;
-	user_id: string;
-	user_email: string;
-	patient_name?: string;
-	patient_phone?: string;
-	patient_age?: number;
-	patient_gender?: string;
+	patient_id: string;
+	patient_name: string;
+	patient_email: string;
 	type: string;
-	doctor: string;
-	date: string;
 	time: string;
-	reason_for_visit?: string;
-	status: 'pending' | 'approved' | 'completed' | 'cancelled';
-	created_at: string;
-	updated_at: string;
+	reason_for_visit: string;
+	status: string;
 	doctor_notes?: string;
 }
 
@@ -89,7 +75,7 @@ function DoctorDashboard() {
 	// State management
 	const [loading, setLoading] = useState(true);
 	const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-	const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
+	const [todayAppointments, setTodayAppointments] = useState<TodayAppointment[]>([]);
 	const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -340,7 +326,7 @@ function DoctorDashboard() {
 								<div>
 									<p className="text-sm text-gray-600">Total Appointments</p>
 									<p className="text-lg sm:text-2xl font-bold">
-										{dashboardStats?.totalAppointments || 0}
+										{dashboardStats?.total_appointments || 0}
 									</p>
 									<p className="text-xs text-gray-500">All time</p>
 								</div>
@@ -355,9 +341,9 @@ function DoctorDashboard() {
 								<div>
 									<p className="text-sm text-gray-600">Today's Appointments</p>
 									<p className="text-lg sm:text-2xl font-bold text-blue-600">
-										{dashboardStats?.todayAppointments || 0}
+										{dashboardStats?.today_appointments || 0}
 									</p>
-									<p className="text-xs text-gray-500">Approved for today</p>
+									<p className="text-xs text-gray-500">Scheduled for today</p>
 								</div>
 								<Activity className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
 							</div>
@@ -370,7 +356,7 @@ function DoctorDashboard() {
 								<div>
 									<p className="text-sm text-gray-600">Completed</p>
 									<p className="text-lg sm:text-2xl font-bold text-green-600">
-										{dashboardStats?.completedAppointments || 0}
+										{dashboardStats?.completed_appointments || 0}
 									</p>
 									<p className="text-xs text-gray-500">This month</p>
 								</div>
@@ -385,7 +371,7 @@ function DoctorDashboard() {
 								<div>
 									<p className="text-sm text-gray-600">Pending</p>
 									<p className="text-lg sm:text-2xl font-bold text-orange-600">
-										{dashboardStats?.pendingActions || 0}
+										{dashboardStats?.pending_appointments || 0}
 									</p>
 									<p className="text-xs text-gray-500">Awaiting action</p>
 								</div>
@@ -416,7 +402,7 @@ function DoctorDashboard() {
 								{todayAppointments.length === 0 ? (
 									<div className="text-center py-8">
 										<Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-										<p className="text-gray-500 mb-4">No appointments for today</p>
+										<p className="text-gray-500 mb-4">No appointments scheduled for today</p>
 										<p className="text-sm text-gray-400">Take some time to review patient records or prepare for upcoming appointments.</p>
 									</div>
 								) : (
@@ -430,22 +416,22 @@ function DoctorDashboard() {
 													<Avatar className="w-10 h-10 sm:w-12 sm:h-12">
 														<AvatarImage src="/placeholder.svg?height=48&width=48" />
 														<AvatarFallback>
-															{(appointment.patient_name || 'Unknown')
+															{appointment.patient_name
 																.split(' ')
-																.map((n: string) => n[0])
+																.map((n) => n[0])
 																.join('')
 																.toUpperCase()}
 														</AvatarFallback>
 													</Avatar>
 													<div className="min-w-0 flex-1">
 														<h4 className="font-semibold text-sm sm:text-base">
-															{appointment.patient_name || 'Unknown Patient'}
+															{appointment.patient_name}
 														</h4>
 														<p className="text-xs sm:text-sm text-gray-600">
 															{appointment.type}
 														</p>
 														<p className="text-xs text-gray-500 truncate">
-															{appointment.reason_for_visit || 'No reason provided'}
+															{appointment.reason_for_visit}
 														</p>
 													</div>
 												</div>
@@ -491,7 +477,7 @@ function DoctorDashboard() {
 																size="sm"
 																variant="outline"
 																className="text-xs"
-																onClick={() => router.push(`/doctor/patients/${appointment.user_id}`)}
+																onClick={() => router.push(`/doctor/patients/${appointment.patient_id}`)}
 															>
 																<User className="w-3 h-3 mr-1" />
 																View Patient
@@ -531,17 +517,17 @@ function DoctorDashboard() {
 							<CardContent className="space-y-4">
 								<div className="flex items-center justify-between">
 									<span className="text-sm text-gray-600">Appointments</span>
-									<span className="font-semibold">{dashboardStats?.thisWeekAppointments || 0}</span>
+									<span className="font-semibold">{dashboardStats?.this_week_appointments || 0}</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="text-sm text-gray-600">Patients</span>
-									<span className="font-semibold">{dashboardStats?.totalPatients || 0}</span>
+									<span className="font-semibold">{dashboardStats?.recent_patients_count || 0}</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="text-sm text-gray-600">Completion Rate</span>
 									<span className="font-semibold text-green-600">
-										{dashboardStats?.completedAppointments && dashboardStats?.totalAppointments
-											? Math.round((dashboardStats.completedAppointments / dashboardStats.totalAppointments) * 100)
+										{dashboardStats?.completed_appointments && dashboardStats?.total_appointments
+											? Math.round((dashboardStats.completed_appointments / dashboardStats.total_appointments) * 100)
 											: 0}%
 									</span>
 								</div>
@@ -578,7 +564,7 @@ function DoctorDashboard() {
 									onClick={() => router.push('/doctor/appointments?filter=pending')}
 								>
 									<Clock className="w-4 h-4 mr-2" />
-									Pending Approvals ({dashboardStats?.pendingActions || 0})
+									Pending Approvals ({dashboardStats?.pending_appointments || 0})
 								</Button>
 								<Button
 									className="w-full justify-start"

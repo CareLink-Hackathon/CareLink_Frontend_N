@@ -34,6 +34,8 @@ import {
 	Paperclip,
 	RotateCcw,
 	X,
+	Languages,
+	CheckCircle,
 } from 'lucide-react';
 
 interface UploadedFile {
@@ -57,7 +59,10 @@ export default function PatientChatbot() {
 		chats, 
 		currentChat, 
 		createNewChat, 
-		sendMessage, 
+		sendMessage,
+		sendEnhancedMessage,
+		transcribeAudio,
+		processDocument,
 		selectChat,
 		loadChatHistory,
 		isLoading, 
@@ -66,12 +71,15 @@ export default function PatientChatbot() {
 	} = usePatient();
 
 	const [message, setMessage] = useState('');
+	const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'fr'>('en');
 	const [isRecording, setIsRecording] = useState(false);
 	const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 	const [recordedAudios, setRecordedAudios] = useState<RecordedAudio[]>([]);
 	const [audioLevel, setAudioLevel] = useState(0);
 	const [recordingTime, setRecordingTime] = useState(0);
 	const [isSending, setIsSending] = useState(false);
+	const [isProcessingAudio, setIsProcessingAudio] = useState(false);
+	const [isProcessingDocument, setIsProcessingDocument] = useState(false);
 
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -127,18 +135,54 @@ export default function PatientChatbot() {
 		}
 	};
 
-	// Send message to existing chat
+	// Send message to existing chat with enhanced features
 	const handleSendMessage = async (chatId?: string) => {
 		const targetChatId = chatId || currentChat?.chat_id;
-		if (!targetChatId || !message.trim()) return;
+		if (!targetChatId || (!message.trim() && uploadedFiles.length === 0 && recordedAudios.length === 0)) {
+			return;
+		}
 
 		setIsSending(true);
-		const success = await sendMessage(targetChatId, message);
 		
-		if (success) {
-			setMessage('');
-			setUploadedFiles([]);
-			setRecordedAudios([]);
+		try {
+			// Use enhanced messaging if we have files or audio
+			if (uploadedFiles.length > 0 || recordedAudios.length > 0) {
+				// Process multiple files and audio recordings
+				for (const uploadedFile of uploadedFiles) {
+					const success = await sendEnhancedMessage(targetChatId, {
+						message: message || `Processing ${uploadedFile.file.name}`,
+						documentFile: uploadedFile.file
+					});
+					if (!success) break;
+				}
+				
+				for (const recordedAudio of recordedAudios) {
+					const success = await sendEnhancedMessage(targetChatId, {
+						message: message || `Processing audio recording`,
+						audioBlob: recordedAudio.blob,
+						audioLanguage: selectedLanguage
+					});
+					if (!success) break;
+				}
+				
+				// If we have message text without files/audio, send it separately
+				if (message.trim() && uploadedFiles.length === 0 && recordedAudios.length === 0) {
+					await sendMessage(targetChatId, message);
+				}
+				
+				setMessage('');
+				setUploadedFiles([]);
+				setRecordedAudios([]);
+			} else {
+				// Use regular messaging for text-only
+				const success = await sendMessage(targetChatId, message);
+				
+				if (success) {
+					setMessage('');
+				}
+			}
+		} catch (error) {
+			console.error('Error sending message:', error);
 		}
 		
 		setIsSending(false);
@@ -203,7 +247,7 @@ export default function PatientChatbot() {
 				}
 			};
 
-			mediaRecorder.onstop = () => {
+			mediaRecorder.onstop = async () => {
 				const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
 				const audioId = Date.now().toString();
 				const audioFile: RecordedAudio = {
@@ -212,7 +256,23 @@ export default function PatientChatbot() {
 					duration: recordingTime,
 					name: `Recording ${recordedAudios.length + 1}`,
 				};
+				
 				setRecordedAudios((prev) => [...prev, audioFile]);
+				
+				// Transcribe the audio automatically
+				setIsProcessingAudio(true);
+				try {
+					const transcribedText = await transcribeAudio(audioBlob, selectedLanguage);
+					if (transcribedText) {
+						setMessage((prev) => 
+							prev + (prev ? '\n\n' : '') + 
+							`[Audio transcription (${selectedLanguage.toUpperCase()})]\n${transcribedText}`
+						);
+					}
+				} catch (error) {
+					console.error('Error transcribing audio:', error);
+				}
+				setIsProcessingAudio(false);
 			};
 		} catch (error) {
 			console.error('Error starting recording:', error);
@@ -240,8 +300,8 @@ export default function PatientChatbot() {
 		}
 	};
 
-	// File upload handler
-	const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+	// File upload handler with processing
+	const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const files = event.target.files;
 		if (files) {
 			const newFiles = Array.from(files).map((file) => ({
@@ -252,30 +312,61 @@ export default function PatientChatbot() {
 			}));
 
 			setUploadedFiles((prev) => [...prev, ...newFiles]);
+			setIsProcessingDocument(true);
 
-			// Simulate upload progress
-			newFiles.forEach((uploadFile) => {
-				const interval = setInterval(() => {
+			// Process each file
+			for (const uploadFile of newFiles) {
+				try {
+					// Update progress
+					const updateProgress = (progress: number) => {
+						setUploadedFiles((prev) =>
+							prev.map((f) =>
+								f.id === uploadFile.id
+									? { ...f, progress }
+									: f
+							)
+						);
+					};
+
+					// Simulate initial upload progress
+					updateProgress(30);
+					
+					// Process the document
+					const extractedText = await processDocument(uploadFile.file);
+					
+					updateProgress(80);
+					
+					if (extractedText) {
+						// Add extracted text as message preview
+						setMessage((prev) => 
+							prev + (prev ? '\n\n' : '') + 
+							`[Document: ${uploadFile.file.name}]\n${extractedText.substring(0, 200)}${extractedText.length > 200 ? '...' : ''}`
+						);
+						updateProgress(100);
+						
+						setUploadedFiles((prev) =>
+							prev.map((f) =>
+								f.id === uploadFile.id
+									? { ...f, status: 'completed', progress: 100 }
+									: f
+							)
+						);
+					} else {
+						throw new Error('Failed to extract text from document');
+					}
+				} catch (error) {
+					console.error('Error processing document:', error);
 					setUploadedFiles((prev) =>
 						prev.map((f) =>
 							f.id === uploadFile.id
-								? { ...f, progress: Math.min(f.progress + 20, 100) }
+								? { ...f, status: 'error', progress: 0 }
 								: f
 						)
 					);
-				}, 200);
-
-				setTimeout(() => {
-					clearInterval(interval);
-					setUploadedFiles((prev) =>
-						prev.map((f) =>
-							f.id === uploadFile.id
-								? { ...f, status: 'completed', progress: 100 }
-								: f
-						)
-					);
-				}, 1000);
-			});
+				}
+			}
+			
+			setIsProcessingDocument(false);
 		}
 	};
 
@@ -401,6 +492,33 @@ export default function PatientChatbot() {
 								</div>
 							</div>
 							<div className="flex items-center space-x-2">
+								{/* Language Selector */}
+								<div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+									<Button
+										variant={selectedLanguage === 'en' ? 'default' : 'ghost'}
+										size="sm"
+										className={`px-3 py-1 text-xs h-7 ${
+											selectedLanguage === 'en' 
+												? 'bg-white shadow-sm text-gray-900' 
+												: 'text-gray-600 hover:bg-gray-200'
+										}`}
+										onClick={() => setSelectedLanguage('en')}
+									>
+										EN
+									</Button>
+									<Button
+										variant={selectedLanguage === 'fr' ? 'default' : 'ghost'}
+										size="sm"
+										className={`px-3 py-1 text-xs h-7 ${
+											selectedLanguage === 'fr' 
+												? 'bg-white shadow-sm text-gray-900' 
+												: 'text-gray-600 hover:bg-gray-200'
+										}`}
+										onClick={() => setSelectedLanguage('fr')}
+									>
+										FR
+									</Button>
+								</div>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -415,6 +533,20 @@ export default function PatientChatbot() {
 							</div>
 						</div>
 					</div>
+
+					{/* Processing Indicators */}
+					{(isProcessingAudio || isProcessingDocument) && (
+						<div className="p-4 bg-blue-50 border-b border-blue-200">
+							<div className="flex items-center space-x-2">
+								<Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+								<p className="text-blue-700 text-sm">
+									{isProcessingAudio && 'Transcribing audio...'}
+									{isProcessingDocument && 'Processing document...'}
+									{isProcessingAudio && isProcessingDocument && 'Processing files...'}
+								</p>
+							</div>
+						</div>
+					)}
 
 					{/* Error Display */}
 					{error && (
@@ -443,10 +575,10 @@ export default function PatientChatbot() {
 								<div className="text-center">
 									<MessageSquare className="w-16 h-16 mx-auto text-gray-400 mb-4" />
 									<h3 className="text-lg font-medium text-gray-900 mb-2">
-										Welcome to CareLink AI
+										Welcome to Enhanced CareLink AI
 									</h3>
 									<p className="text-gray-600 mb-4">
-										Start a conversation to get medical assistance and health information
+										Chat with text, voice (EN/FR), or upload documents for comprehensive medical assistance
 									</p>
 									<div className="flex flex-wrap gap-2 justify-center max-w-md">
 										<Button
@@ -466,9 +598,9 @@ export default function PatientChatbot() {
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => setMessage('Tell me about my medications')}
+											onClick={() => setMessage('Analyze my medical report')}
 										>
-											Medication Info
+											Document Analysis
 										</Button>
 									</div>
 								</div>
@@ -516,6 +648,47 @@ export default function PatientChatbot() {
 
 					{/* Input Area */}
 					<div className="p-4 border-t border-gray-200 bg-white">
+						{/* Recorded Audio Display */}
+						{recordedAudios.length > 0 && (
+							<div className="mb-4">
+								<h4 className="text-sm font-medium text-gray-700 mb-3">
+									Audio Recordings
+								</h4>
+								<div className="space-y-2">
+									{recordedAudios.map((audio) => (
+										<div
+											key={audio.id}
+											className="flex items-center bg-blue-50 rounded-xl px-3 py-3 border border-blue-200"
+										>
+											<div className="flex items-center space-x-3 flex-1 min-w-0">
+												<div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+													<Mic className="w-4 h-4 text-blue-600" />
+												</div>
+												<div className="min-w-0 flex-1">
+													<p className="text-sm font-medium text-gray-900">
+														{audio.name}
+													</p>
+													<p className="text-xs text-gray-500">
+														Duration: {formatTime(audio.duration)} • Language: {selectedLanguage.toUpperCase()}
+													</p>
+												</div>
+											</div>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="flex-shrink-0 text-gray-500 hover:text-red-600 hover:bg-red-50"
+												onClick={() =>
+													setRecordedAudios(prev => prev.filter(a => a.id !== audio.id))
+												}
+											>
+												<X className="w-4 h-4" />
+											</Button>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
 						{/* File Uploads Display */}
 						{uploadedFiles.length > 0 && (
 							<div className="mb-4">
@@ -526,24 +699,49 @@ export default function PatientChatbot() {
 									{uploadedFiles.map((uploadedFile) => (
 										<div
 											key={uploadedFile.id}
-											className="flex items-center bg-gray-50 rounded-xl px-3 py-3 border border-gray-200"
+											className={`flex items-center rounded-xl px-3 py-3 border ${
+												uploadedFile.status === 'completed' 
+													? 'bg-green-50 border-green-200' 
+													: uploadedFile.status === 'error'
+													? 'bg-red-50 border-red-200'
+													: 'bg-gray-50 border-gray-200'
+											}`}
 										>
 											<div className="flex items-center space-x-3 flex-1 min-w-0">
-												<Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
+												{uploadedFile.status === 'completed' ? (
+													<CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+												) : uploadedFile.status === 'error' ? (
+													<AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+												) : (
+													<Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
+												)}
 												<div className="min-w-0 flex-1">
 													<p className="text-sm font-medium text-gray-900 truncate">
 														{uploadedFile.file.name}
 													</p>
 													<div className="flex items-center space-x-2 mt-1">
-														<div className="flex-1 bg-gray-200 rounded-full h-1.5">
-															<div
-																className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-																style={{ width: `${uploadedFile.progress}%` }}
-															></div>
-														</div>
-														<span className="text-xs text-gray-500">
-															{uploadedFile.progress}%
-														</span>
+														{uploadedFile.status !== 'error' && (
+															<>
+																<div className="flex-1 bg-gray-200 rounded-full h-1.5">
+																	<div
+																		className={`h-1.5 rounded-full transition-all duration-300 ${
+																			uploadedFile.status === 'completed' 
+																				? 'bg-green-500' 
+																				: 'bg-blue-600'
+																		}`}
+																		style={{ width: `${uploadedFile.progress}%` }}
+																	></div>
+																</div>
+																<span className="text-xs text-gray-500">
+																	{uploadedFile.status === 'completed' ? 'Processed' : `${uploadedFile.progress}%`}
+																</span>
+															</>
+														)}
+														{uploadedFile.status === 'error' && (
+															<span className="text-xs text-red-600">
+																Processing failed
+															</span>
+														)}
 													</div>
 												</div>
 											</div>
@@ -611,7 +809,7 @@ export default function PatientChatbot() {
 								<Textarea
 									value={message}
 									onChange={(e) => setMessage(e.target.value)}
-									placeholder="Ask about your health, symptoms, or upload files..."
+									placeholder="Type your message, record audio, or upload documents for analysis..."
 									className="min-h-[60px] pr-16 resize-none text-base border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500 shadow-sm"
 									onKeyDown={(e) => {
 										if (e.key === 'Enter' && !e.shiftKey) {
@@ -687,10 +885,16 @@ export default function PatientChatbot() {
 									variant="ghost"
 									size="sm"
 									className="text-xs h-7 px-2 text-gray-600 hover:bg-gray-100"
-									onClick={() => setMessage('Can you help me book an appointment?')}
+									onClick={() => setMessage('Analyze my medical documents')}
 								>
-									Appointment
+									Document Analysis
 								</Button>
+							</div>
+							<div className="flex items-center space-x-2">
+								<span className="text-xs text-gray-500">
+									Language: {selectedLanguage.toUpperCase()}
+								</span>
+								<div className="w-2 h-2 rounded-full bg-green-400"></div>
 							</div>
 						</div>
 					</div>

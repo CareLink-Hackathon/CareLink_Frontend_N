@@ -225,10 +225,12 @@ interface DoctorContextType {
 
 	// Appointment actions
 	loadAppointments: () => Promise<void>;
+	loadTodayAppointments: () => Promise<void>;
 	selectAppointment: (appointment: Appointment | null) => void;
 	updateAppointmentStatus: (
 		appointmentId: string,
-		status: string
+		status: string,
+		doctorNotes?: string
 	) => Promise<void>;
 	acceptAppointment: (appointmentId: string) => Promise<void>;
 
@@ -307,20 +309,36 @@ export function DoctorProvider({ children }: { children: React.ReactNode }) {
 		}
 	};
 
+	const loadTodayAppointments = async (): Promise<void> => {
+		try {
+			dispatch({ type: 'SET_APPOINTMENTS_LOADING', payload: true });
+			const doctorId = getDoctorId();
+			const todayAppointments = await doctorService.getTodayAppointments(doctorId);
+			dispatch({ type: 'SET_APPOINTMENTS', payload: todayAppointments });
+		} catch (error) {
+			console.error('Error loading today appointments:', error);
+			dispatch({ type: 'SET_ERROR', payload: 'Failed to load today appointments' });
+		} finally {
+			dispatch({ type: 'SET_APPOINTMENTS_LOADING', payload: false });
+		}
+	};
+
 	const selectAppointment = (appointment: Appointment | null): void => {
 		dispatch({ type: 'SET_SELECTED_APPOINTMENT', payload: appointment });
 	};
 
 	const updateAppointmentStatus = async (
 		appointmentId: string,
-		status: string
+		status: string,
+		doctorNotes?: string
 	): Promise<void> => {
 		try {
 			const doctorId = getDoctorId();
 			await doctorService.updateAppointmentStatus(
 				appointmentId,
 				status,
-				doctorId
+				doctorId,
+				doctorNotes
 			);
 
 			// Update local state
@@ -328,7 +346,11 @@ export function DoctorProvider({ children }: { children: React.ReactNode }) {
 				(apt) => apt._id === appointmentId
 			);
 			if (updatedAppointment) {
-				const updated = { ...updatedAppointment, status: status as any };
+				const updated = { 
+					...updatedAppointment, 
+					status: status as any,
+					doctor_notes: doctorNotes || updatedAppointment.doctor_notes
+				};
 				dispatch({ type: 'UPDATE_APPOINTMENT', payload: updated });
 			}
 		} catch (error) {
@@ -561,6 +583,7 @@ export function DoctorProvider({ children }: { children: React.ReactNode }) {
 		state,
 		loadDashboardStats,
 		loadAppointments,
+		loadTodayAppointments,
 		selectAppointment,
 		updateAppointmentStatus,
 		acceptAppointment,

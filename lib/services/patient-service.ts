@@ -1,4 +1,4 @@
-import { apiClient } from '../api';
+import { apiClient, API_BASE_URL } from '../api';
 import {
 	Chat,
 	NewChatRequest,
@@ -38,8 +38,133 @@ export class PatientService {
 		}>(`/patient/${userId}/chat/${chatId}`, data);
 	}
 
+	// Enhanced Chat Operations
+	async sendEnhancedChatMessage(
+		userId: string, 
+		chatId: string, 
+		options: {
+			message?: string;
+			audioBlob?: Blob;
+			audioLanguage?: 'en' | 'fr';
+			documentFile?: File;
+		}
+	) {
+		try {
+			const formData = new FormData();
+			
+			if (options.message) {
+				formData.append('message', options.message);
+			}
+			
+			if (options.audioBlob) {
+				formData.append('audio', options.audioBlob, 'audio.wav');
+				formData.append('audio_language', options.audioLanguage || 'en');
+			}
+			
+			if (options.documentFile) {
+				formData.append('document', options.documentFile);
+			}
+			
+			const response = await fetch(
+				`${API_BASE_URL}/patient/${userId}/chat/${chatId}/enhanced`,
+				{
+					method: 'POST',
+					headers: {
+						'Authorization': `Bearer ${localStorage.getItem('token')}`
+					},
+					body: formData
+				}
+			);
+			
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.detail || 'Enhanced chat request failed');
+			}
+			
+			return await response.json();
+		} catch (error) {
+			console.error('Enhanced chat error:', error);
+			throw error;
+		}
+	}
+
+	async transcribeAudio(
+		userId: string, 
+		chatId: string, 
+		audioBlob: Blob, 
+		language: 'en' | 'fr' = 'en'
+	) {
+		try {
+			const formData = new FormData();
+			formData.append('audio', audioBlob, 'audio.wav');
+			formData.append('language', language);
+			
+			const response = await fetch(
+				`${API_BASE_URL}/patient/${userId}/chat/${chatId}/audio`,
+				{
+					method: 'POST',
+					headers: {
+						'Authorization': `Bearer ${localStorage.getItem('token')}`
+					},
+					body: formData
+				}
+			);
+			
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.detail || 'Audio transcription failed');
+			}
+			
+			return await response.json();
+		} catch (error) {
+			console.error('Audio transcription error:', error);
+			throw error;
+		}
+	}
+
+	async processDocument(
+		userId: string, 
+		chatId: string, 
+		documentFile: File
+	) {
+		try {
+			const formData = new FormData();
+			formData.append('document', documentFile);
+			
+			const response = await fetch(
+				`${API_BASE_URL}/patient/${userId}/chat/${chatId}/document`,
+				{
+					method: 'POST',
+					headers: {
+						'Authorization': `Bearer ${localStorage.getItem('token')}`
+					},
+					body: formData
+				}
+			);
+			
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.detail || 'Document processing failed');
+			}
+			
+			return await response.json();
+		} catch (error) {
+			console.error('Document processing error:', error);
+			throw error;
+		}
+	}
+
 	async getChatHistory(userId: string) {
 		return await apiClient.get<User>(`/chats/${userId}`);
+	}
+
+	async getDecryptedChatHistory(userId: string) {
+		try {
+			return await apiClient.get<Chat[]>(`/patient/${userId}/chats/decrypted`);
+		} catch (error) {
+			console.warn('Decrypted chat history not available, falling back to regular chat history');
+			return await this.getChatHistory(userId);
+		}
 	}
 
 	// Appointment Operations
@@ -68,6 +193,73 @@ export class PatientService {
 
 	async getAllFeedbacks() {
 		return await apiClient.get<any[]>('/feedback/');
+	}
+
+	// Medical Records Operations
+	async getMedicalRecords(patientId: string) {
+		try {
+			console.log('🏥 Fetching medical records for patient:', patientId);
+			const response = await apiClient.get<any[]>(`/api/medical-records/patient/${patientId}`);
+			console.log('✅ Medical records fetched successfully:', response?.length || 0, 'records');
+			return response || [];
+		} catch (error) {
+			console.error('❌ Error fetching medical records:', error);
+			throw error;
+		}
+	}
+
+	async getMedicalRecord(recordId: string) {
+		try {
+			console.log('🏥 Fetching medical record:', recordId);
+			const response = await apiClient.get<any>(`/api/medical-records/${recordId}`);
+			console.log('✅ Medical record fetched successfully');
+			return response;
+		} catch (error) {
+			console.error('❌ Error fetching medical record:', error);
+			throw error;
+		}
+	}
+
+	async downloadMedicalRecordPDF(recordId: string): Promise<void> {
+		try {
+			console.log('📄 Downloading PDF for record:', recordId);
+			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/medical-records/${recordId}/pdf`, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${localStorage.getItem('token')}`,
+				},
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to download PDF');
+			}
+
+			// Get the filename from response headers or create a default one
+			const contentDisposition = response.headers.get('content-disposition');
+			let filename = 'medical_record.pdf';
+			if (contentDisposition) {
+				const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+				if (filenameMatch) {
+					filename = filenameMatch[1].replace(/['"]/g, '');
+				}
+			}
+
+			// Convert response to blob and download
+			const blob = await response.blob();
+			const url = window.URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = filename;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			window.URL.revokeObjectURL(url);
+
+			console.log('✅ PDF downloaded successfully');
+		} catch (error) {
+			console.error('❌ Error downloading medical record PDF:', error);
+			throw error;
+		}
 	}
 
 	// Utility Methods

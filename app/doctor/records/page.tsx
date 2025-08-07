@@ -1,777 +1,590 @@
-'use client';
+"use client"
 
-import { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { ProtectedRoute } from '@/components/auth/protected-route'
+import { ResponsiveDashboardLayout } from '@/components/layout/responsive-dashboard-layout'
+import { useAuth } from '@/lib/auth-context'
+import { doctorService, MedicalRecord } from '@/lib/services/doctor-service'
 import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-	DialogFooter,
-} from '@/components/ui/dialog';
-import {
-	Search,
-	Bell,
-	Settings,
-	HelpCircle,
-	LogOut,
-	Calendar,
-	Users,
-	Activity,
-	FileText,
-	Filter,
-	Eye,
-	Download,
-	Upload,
-	Plus,
-	Edit,
-	Trash2,
-	Image,
-	File,
-	Stethoscope,
-	Heart,
-	Brain,
-	Clipboard,
-} from 'lucide-react';
+  Search,
+  Calendar,
+  Users,
+  Activity,
+  FileText,
+  Eye,
+  Download,
+  RefreshCw,
+  AlertTriangle,
+  Settings,
+  HelpCircle,
+  Bell,
+  Heart,
+  Stethoscope,
+  Brain,
+  Clipboard,
+  FileImage,
+  TestTube,
+} from "lucide-react"
 
 export default function DoctorRecords() {
-	const router = useRouter();
-	const [selectedRecord, setSelectedRecord] = useState<any>(null);
-	const [searchTerm, setSearchTerm] = useState('');
-	const [filterType, setFilterType] = useState('all');
+  const router = useRouter()
+  const { user } = useAuth()
+  
+  // State management
+  const [loading, setLoading] = useState(true)
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterType, setFilterType] = useState("all")
+  const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | null>(null)
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
 
-	const sidebarItems = [
-		{ icon: Activity, label: 'Dashboard', href: '/doctor/dashboard' },
-		{ icon: Calendar, label: 'My Appointments', href: '/doctor/appointments' },
-		{ icon: Users, label: 'My Patients', href: '/doctor/patients' },
-		{
-			icon: FileText,
-			label: 'Medical Records',
-			href: '/doctor/records',
-			active: true,
-		},
-		{
-			icon: Bell,
-			label: 'Notifications',
-			href: '/doctor/notifications',
-			badge: '3',
-		},
-		{ icon: Settings, label: 'Settings', href: '/doctor/settings' },
-		{ icon: HelpCircle, label: 'Help Center', href: '/doctor/help' },
-	];
+  // Get doctor ID from user
+  const getDoctorId = () => {
+    return user?.user_id || user?._id || (user as any)?.id
+  }
 
-	const medicalRecords = [
-		{
-			id: 1,
-			patientName: 'John Doe',
-			patientId: 'P001',
-			recordType: 'Lab Results',
-			title: 'Complete Blood Count & Lipid Panel',
-			date: '2025-01-27',
-			status: 'completed',
-			priority: 'normal',
-			category: 'laboratory',
-			description:
-				'Routine blood work including CBC, lipid panel, and glucose levels',
-			results: {
-				hemoglobin: '14.2 g/dL (Normal)',
-				whiteBloodCells: '6,800/μL (Normal)',
-				platelets: '285,000/μL (Normal)',
-				glucose: '98 mg/dL (Normal)',
-				cholesterol: '195 mg/dL (Borderline)',
-				ldl: '125 mg/dL (Borderline)',
-				hdl: '45 mg/dL (Low)',
-				triglycerides: '165 mg/dL (Normal)',
-			},
-			attachments: [
-				{ name: 'lab_results_20250127.pdf', type: 'pdf', size: '2.4 MB' },
-				{ name: 'blood_work_chart.png', type: 'png', size: '1.2 MB' },
-			],
-			notes:
-				'HDL cholesterol is slightly low. Recommend dietary changes and follow-up in 3 months.',
-		},
-		{
-			id: 2,
-			patientName: 'Jane Smith',
-			patientId: 'P002',
-			recordType: 'Imaging',
-			title: 'Chest X-Ray - Routine Screening',
-			date: '2025-01-25',
-			status: 'completed',
-			priority: 'normal',
-			category: 'imaging',
-			description: 'Annual chest X-ray for asthma monitoring',
-			results: {
-				findings: 'Clear lung fields bilaterally',
-				impression: 'No acute cardiopulmonary abnormalities',
-				recommendation: 'Continue current asthma management',
-			},
-			attachments: [
-				{ name: 'chest_xray_20250125.dcm', type: 'dcm', size: '45.2 MB' },
-				{ name: 'radiology_report.pdf', type: 'pdf', size: '890 KB' },
-			],
-			notes:
-				'Excellent response to current asthma treatment. No changes needed.',
-		},
-		{
-			id: 3,
-			patientName: 'Bob Wilson',
-			patientId: 'P003',
-			recordType: 'Cardiac Study',
-			title: 'Echocardiogram - Post-MI Follow-up',
-			date: '2025-01-20',
-			status: 'completed',
-			priority: 'high',
-			category: 'cardiology',
-			description:
-				'Follow-up echocardiogram after recent myocardial infarction',
-			results: {
-				ejectionFraction: '45% (Mildly reduced)',
-				wallMotion: 'Hypokinesis of anterior wall',
-				valves: 'Mild mitral regurgitation',
-				recommendation: 'Continue cardiac rehabilitation, optimize medications',
-			},
-			attachments: [
-				{ name: 'echo_report_20250120.pdf', type: 'pdf', size: '3.2 MB' },
-				{ name: 'echo_images.zip', type: 'zip', size: '125 MB' },
-			],
-			notes:
-				'EF improvement from 40% to 45%. Patient responding well to treatment. Continue ACE inhibitor and beta-blocker.',
-		},
-		{
-			id: 4,
-			patientName: 'Alice Brown',
-			patientId: 'P004',
-			recordType: 'Consultation',
-			title: 'Neurology Consultation - Migraine Management',
-			date: '2025-01-15',
-			status: 'completed',
-			priority: 'normal',
-			category: 'consultation',
-			description: 'Specialist consultation for chronic migraine management',
-			results: {
-				assessment: 'Chronic migraine with medication overuse',
-				plan: 'Discontinue overused medications, start preventive therapy',
-				followUp: '4 weeks',
-			},
-			attachments: [
-				{ name: 'neuro_consult_20250115.pdf', type: 'pdf', size: '1.8 MB' },
-			],
-			notes:
-				'Patient education provided on medication overuse headache. Started on topiramate for prevention.',
-		},
-		{
-			id: 5,
-			patientName: 'John Doe',
-			patientId: 'P001',
-			recordType: 'Procedure',
-			title: 'Cardiac Catheterization',
-			date: '2025-01-10',
-			status: 'completed',
-			priority: 'high',
-			category: 'procedure',
-			description: 'Diagnostic cardiac catheterization to evaluate chest pain',
-			results: {
-				findings: '70% stenosis in LAD, 40% stenosis in RCA',
-				intervention: 'PCI with DES to LAD',
-				outcome: 'Successful revascularization',
-			},
-			attachments: [
-				{ name: 'cath_report_20250110.pdf', type: 'pdf', size: '4.1 MB' },
-				{ name: 'angiogram_images.zip', type: 'zip', size: '89 MB' },
-			],
-			notes:
-				'Successful PCI. Patient doing well post-procedure. Continue dual antiplatelet therapy.',
-		},
-	];
+  const sidebarItems = [
+    { icon: Activity, label: "Dashboard", href: "/doctor/dashboard" },
+    { icon: Calendar, label: "My Appointments", href: "/doctor/appointments" },
+    { icon: Users, label: "My Patients", href: "/doctor/patients" },
+    { icon: FileText, label: "Medical Records", href: "/doctor/records", active: true },
+    { icon: Bell, label: "Notifications", href: "/doctor/notifications" },
+    { icon: Settings, label: "Settings", href: "/doctor/settings" },
+    { icon: HelpCircle, label: "Help Center", href: "/doctor/help" },
+  ]
 
-	const filteredRecords = medicalRecords.filter((record) => {
-		const matchesSearch =
-			record.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			record.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			record.patientId.toLowerCase().includes(searchTerm.toLowerCase());
-		const matchesType = filterType === 'all' || record.category === filterType;
-		return matchesSearch && matchesType;
-	});
+  const userInfo = {
+    name: user ? `DR. ${(user.first_name || '').toUpperCase()} ${(user.last_name || '').toUpperCase()}` : 'Doctor',
+    id: user ? `Doctor ID: ${(user.user_id || user._id || '').slice(-6)}` : 'Loading...',
+    avatar: '/placeholder.svg?height=64&width=64',
+    fallback: user ? `${(user.first_name || 'D')[0]}${(user.last_name || 'R')[0]}` : 'DR',
+    role: (user as any)?.specialty || 'Doctor',
+  }
 
-	const getStatusColor = (status: string) => {
-		switch (status) {
-			case 'completed':
-				return 'bg-green-100 text-green-800';
-			case 'pending':
-				return 'bg-yellow-100 text-yellow-800';
-			case 'in-progress':
-				return 'bg-blue-100 text-blue-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
-		}
-	};
+  // Load medical records
+  const loadMedicalRecords = async () => {
+    const doctorId = getDoctorId()
+    if (!doctorId) {
+      console.warn('No doctor ID found')
+      setLoading(false)
+      return
+    }
 
-	const getPriorityColor = (priority: string) => {
-		switch (priority) {
-			case 'high':
-				return 'bg-red-100 text-red-800';
-			case 'normal':
-				return 'bg-gray-100 text-gray-800';
-			case 'low':
-				return 'bg-green-100 text-green-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
-		}
-	};
+    try {
+      setLoading(true)
+      setError(null)
 
-	const getCategoryIcon = (category: string) => {
-		switch (category) {
-			case 'laboratory':
-				return <FileText className="w-4 h-4" />;
-			case 'imaging':
-				return <Image className="w-4 h-4" />;
-			case 'cardiology':
-				return <Heart className="w-4 h-4" />;
-			case 'consultation':
-				return <Stethoscope className="w-4 h-4" />;
-			case 'procedure':
-				return <Activity className="w-4 h-4" />;
-			default:
-				return <Clipboard className="w-4 h-4" />;
-		}
-	};
+      console.log('Loading medical records for doctor:', doctorId)
+      const records = await doctorService.getMedicalRecords(doctorId)
+      setMedicalRecords(records)
 
-	const getFileIcon = (type: string) => {
-		switch (type) {
-			case 'pdf':
-				return <FileText className="w-4 h-4 text-red-500" />;
-			case 'png':
-			case 'jpg':
-			case 'jpeg':
-				return <Image className="w-4 h-4 text-green-500" />;
-			case 'dcm':
-				return <File className="w-4 h-4 text-blue-500" />;
-			case 'zip':
-				return <File className="w-4 h-4 text-purple-500" />;
-			default:
-				return <File className="w-4 h-4 text-gray-500" />;
-		}
-	};
+    } catch (error) {
+      console.error('Error loading medical records:', error)
+      setError('Failed to load medical records')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-	return (
-		<div className="flex h-screen bg-gray-50">
-			{/* Sidebar */}
-			<div className="w-64 bg-gradient-to-b from-blue-600 to-blue-700 text-white">
-				<div className="p-6">
-					<div className="flex items-center space-x-3 mb-8">
-						<Avatar className="w-16 h-16 border-2 border-white">
-							<AvatarImage src="/placeholder.svg?height=64&width=64" />
-							<AvatarFallback>SJ</AvatarFallback>
-						</Avatar>
-						<div>
-							<h3 className="font-bold text-lg">DR. SARAH JOHNSON</h3>
-							<p className="text-blue-100 text-sm">Cardiologist</p>
-						</div>
-					</div>
+  // Load data on component mount
+  useEffect(() => {
+    if (user?.role === 'doctor') {
+      loadMedicalRecords()
+    } else {
+      setLoading(false)
+    }
+  }, [user])
 
-					<nav className="space-y-2">
-						{sidebarItems.map((item) => (
-							<Link
-								key={item.label}
-								href={item.href}
-								className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-									item.active
-										? 'bg-white text-blue-600'
-										: 'text-white hover:bg-blue-500'
-								}`}
-							>
-								<item.icon className="w-5 h-5" />
-								<span className="flex-1">{item.label}</span>
-								{item.badge && (
-									<Badge className="bg-red-500 text-white text-xs">
-										{item.badge}
-									</Badge>
-								)}
-							</Link>
-						))}
-					</nav>
-				</div>
+  // Filter records based on search and type
+  const filteredRecords = medicalRecords.filter((record) => {
+    const matchesSearch = 
+      record.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.chief_complaint.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      record.patient_id.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesType = filterType === 'all' || record.record_type === filterType
+    
+    return matchesSearch && matchesType
+  })
 
-				<div className="absolute bottom-6 left-6">
-					<Button
-						variant="ghost"
-						className="text-white hover:bg-blue-500 w-full justify-start"
-						onClick={() => router.push('/login')}
-					>
-						<LogOut className="w-5 h-5 mr-3" />
-						Sign-out
-					</Button>
-				</div>
-			</div>
+  // Get record type icon
+  const getRecordTypeIcon = (type: string) => {
+    switch (type) {
+      case 'consultation':
+        return <Stethoscope className="w-4 h-4" />
+      case 'diagnosis':
+        return <Brain className="w-4 h-4" />
+      case 'prescription':
+        return <Clipboard className="w-4 h-4" />
+      case 'laboratory':
+        return <TestTube className="w-4 h-4" />
+      case 'imaging':
+        return <FileImage className="w-4 h-4" />
+      default:
+        return <FileText className="w-4 h-4" />
+    }
+  }
 
-			{/* Main Content */}
-			<div className="flex-1 flex flex-col">
-				{/* Header */}
-				<header className="bg-white border-b border-gray-200 px-6 py-4">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center space-x-4">
-							<h1 className="text-2xl font-bold text-gray-900">
-								Medical Records
-							</h1>
-							<Badge className="bg-blue-100 text-blue-800">
-								{filteredRecords.length} Records
-							</Badge>
-						</div>
-						<div className="flex items-center space-x-4">
-							<Dialog>
-								<DialogTrigger asChild>
-									<Button className="bg-blue-600 hover:bg-blue-700">
-										<Plus className="w-4 h-4 mr-2" />
-										New Record
-									</Button>
-								</DialogTrigger>
-								<DialogContent className="max-w-4xl">
-									<DialogHeader>
-										<DialogTitle className="text-xl">
-											Create New Medical Record
-										</DialogTitle>
-									</DialogHeader>
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-										<div className="space-y-4">
-											<div className="space-y-2">
-												<Label htmlFor="patientSelect">Patient</Label>
-												<Select>
-													<SelectTrigger id="patientSelect">
-														<SelectValue placeholder="Select a patient" />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="P001">
-															John Doe (P001)
-														</SelectItem>
-														<SelectItem value="P002">
-															Jane Smith (P002)
-														</SelectItem>
-														<SelectItem value="P003">
-															Bob Wilson (P003)
-														</SelectItem>
-														<SelectItem value="P004">
-															Alice Brown (P004)
-														</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
+  // Get record type color
+  const getRecordTypeColor = (type: string) => {
+    switch (type) {
+      case 'consultation':
+        return 'bg-blue-100 text-blue-800'
+      case 'diagnosis':
+        return 'bg-purple-100 text-purple-800'
+      case 'prescription':
+        return 'bg-green-100 text-green-800'
+      case 'laboratory':
+        return 'bg-orange-100 text-orange-800'
+      case 'imaging':
+        return 'bg-pink-100 text-pink-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
 
-											<div className="space-y-2">
-												<Label htmlFor="recordType">Record Type</Label>
-												<Select>
-													<SelectTrigger id="recordType">
-														<SelectValue placeholder="Select record type" />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="labResults">
-															Lab Results
-														</SelectItem>
-														<SelectItem value="imaging">Imaging</SelectItem>
-														<SelectItem value="cardiacStudy">
-															Cardiac Study
-														</SelectItem>
-														<SelectItem value="consultation">
-															Consultation
-														</SelectItem>
-														<SelectItem value="procedure">Procedure</SelectItem>
-														<SelectItem value="diagnosis">Diagnosis</SelectItem>
-														<SelectItem value="prescription">
-															Prescription
-														</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return dateString
+    }
+  }
 
-											<div className="space-y-2">
-												<Label htmlFor="recordTitle">Title</Label>
-												<Input id="recordTitle" placeholder="Record title" />
-											</div>
+  // Handle PDF download
+  const handleDownloadPDF = async (recordId: string) => {
+    try {
+      setError(null)
+      await doctorService.downloadMedicalRecordPDF(recordId)
+      
+      // Show success feedback
+      const tempSuccessDiv = document.createElement('div')
+      tempSuccessDiv.className = 'fixed top-4 right-4 bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-lg shadow-lg z-50 transition-all duration-300'
+      tempSuccessDiv.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          <span class="font-medium">PDF downloaded successfully!</span>
+        </div>
+      `
+      document.body.appendChild(tempSuccessDiv)
+      
+      setTimeout(() => {
+        if (document.body.contains(tempSuccessDiv)) {
+          tempSuccessDiv.style.opacity = '0'
+          setTimeout(() => {
+            if (document.body.contains(tempSuccessDiv)) {
+              document.body.removeChild(tempSuccessDiv)
+            }
+          }, 300)
+        }
+      }, 3000)
+      
+    } catch (error) {
+      setError(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
 
-											<div className="space-y-2">
-												<Label htmlFor="recordDate">Date</Label>
-												<Input id="recordDate" type="date" />
-											</div>
+  // Loading state
+  if (loading) {
+    return (
+      <ProtectedRoute allowedRoles={['doctor']}>
+        <ResponsiveDashboardLayout
+          sidebarItems={sidebarItems}
+          userInfo={userInfo}
+          pageTitle="Medical Records"
+        >
+          <div className="flex items-center justify-center h-64">
+            <RefreshCw className="w-8 h-8 animate-spin mr-2" />
+            <span>Loading medical records...</span>
+          </div>
+        </ResponsiveDashboardLayout>
+      </ProtectedRoute>
+    )
+  }
 
-											<div className="space-y-2">
-												<Label htmlFor="priority">Priority</Label>
-												<Select>
-													<SelectTrigger id="priority">
-														<SelectValue placeholder="Select priority" />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="low">Low</SelectItem>
-														<SelectItem value="normal">Normal</SelectItem>
-														<SelectItem value="high">High</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
+  return (
+    <ProtectedRoute allowedRoles={['doctor']}>
+      <ResponsiveDashboardLayout
+        sidebarItems={sidebarItems}
+        userInfo={userInfo}
+        pageTitle="Medical Records"
+      >
+        {/* Header Section */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                Medical Records
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600">
+                Manage and download medical records you've created
+              </p>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={loadMedicalRecords}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
 
-											<div className="space-y-2">
-												<Label htmlFor="status">Status</Label>
-												<Select>
-													<SelectTrigger id="status">
-														<SelectValue placeholder="Select status" />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="pending">Pending</SelectItem>
-														<SelectItem value="in-progress">
-															In Progress
-														</SelectItem>
-														<SelectItem value="completed">Completed</SelectItem>
-													</SelectContent>
-												</Select>
-											</div>
-										</div>
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            <div className="flex items-center">
+              <AlertTriangle className="w-5 h-5 mr-2" />
+              {error}
+            </div>
+          </div>
+        )}
 
-										<div className="space-y-4">
-											<div className="space-y-2">
-												<Label htmlFor="recordDescription">Description</Label>
-												<Textarea
-													id="recordDescription"
-													placeholder="Detailed description of the medical record"
-													className="min-h-[100px]"
-												/>
-											</div>
+        {/* Search and Filter Section */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search by title, diagnosis, complaint, or patient ID..."
+              className="pl-10 border-gray-300"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="consultation">Consultation</SelectItem>
+              <SelectItem value="diagnosis">Diagnosis</SelectItem>
+              <SelectItem value="prescription">Prescription</SelectItem>
+              <SelectItem value="laboratory">Laboratory</SelectItem>
+              <SelectItem value="imaging">Imaging</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-											<div className="space-y-2">
-												<Label htmlFor="recordNotes">Clinical Notes</Label>
-												<Textarea
-													id="recordNotes"
-													placeholder="Additional notes, observations, or recommendations"
-													className="min-h-[100px]"
-												/>
-											</div>
+        {/* Statistics */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total Records</p>
+                  <p className="text-2xl font-bold">{medicalRecords.length}</p>
+                </div>
+                <FileText className="w-8 h-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Consultations</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {medicalRecords.filter(r => r.record_type === 'consultation').length}
+                  </p>
+                </div>
+                <Stethoscope className="w-8 h-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Lab Results</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {medicalRecords.filter(r => r.record_type === 'laboratory').length}
+                  </p>
+                </div>
+                <TestTube className="w-8 h-8 text-orange-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">This Month</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {medicalRecords.filter(r => {
+                      if (!r.created_at) return false
+                      const recordDate = new Date(r.created_at)
+                      const currentDate = new Date()
+                      return recordDate.getMonth() === currentDate.getMonth() && 
+                             recordDate.getFullYear() === currentDate.getFullYear()
+                    }).length}
+                  </p>
+                </div>
+                <Calendar className="w-8 h-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-											<div className="space-y-2">
-												<Label>Attachments</Label>
-												<div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-													<input
-														type="file"
-														id="fileUpload"
-														className="hidden"
-														multiple
-													/>
-													<label
-														htmlFor="fileUpload"
-														className="cursor-pointer flex flex-col items-center justify-center"
-													>
-														<Upload className="w-10 h-10 text-gray-400 mb-2" />
-														<span className="text-sm font-medium">
-															Click to upload files or drag and drop
-														</span>
-														<span className="text-xs text-gray-500 mt-1">
-															PDF, Images, Documents up to 10MB each
-														</span>
-													</label>
-												</div>
-												<div className="text-xs text-gray-500 mt-2">
-													Uploaded files will be securely stored and accessible
-													only to authorized medical personnel.
-												</div>
-											</div>
-										</div>
-									</div>
-									<div className="flex justify-end space-x-4 mt-4">
-										<DialogTrigger asChild>
-											<Button variant="outline">Cancel</Button>
-										</DialogTrigger>
-										<Button
-											className="bg-blue-600 hover:bg-blue-700"
-											onClick={() => {
-												// In a real app, this would save the record to the database
-												console.log('New medical record created');
-												// You would then close the dialog and refresh the list
-											}}
-										>
-											Create Record
-										</Button>
-									</div>
-								</DialogContent>
-							</Dialog>
-							<Button variant="outline" size="icon">
-								<Bell className="w-4 h-4" />
-							</Button>
-							<Button variant="outline" size="icon">
-								<Settings className="w-4 h-4" />
-							</Button>
-							<Avatar className="w-8 h-8">
-								<AvatarImage src="/placeholder.svg?height=32&width=32" />
-								<AvatarFallback>SJ</AvatarFallback>
-							</Avatar>
-						</div>
-					</div>
-				</header>
+        {/* Records List */}
+        <div className="space-y-4">
+          {filteredRecords.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Medical Records Found</h3>
+              <p className="text-gray-600 mb-4">
+                {searchTerm || filterType !== 'all' 
+                  ? 'No records match your search criteria.' 
+                  : 'You have not created any medical records yet.'}
+              </p>
+              {(searchTerm || filterType !== 'all') && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm('')
+                    setFilterType('all')
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          ) : (
+            filteredRecords.map((record) => (
+              <Card key={record._id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        {getRecordTypeIcon(record.record_type)}
+                        <h3 className="font-semibold text-lg truncate">
+                          {record.title}
+                        </h3>
+                        <Badge className={getRecordTypeColor(record.record_type)}>
+                          {record.record_type}
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <p><span className="font-medium">Patient ID:</span> {record.patient_id}</p>
+                        <p><span className="font-medium">Chief Complaint:</span> {record.chief_complaint}</p>
+                        <p><span className="font-medium">Diagnosis:</span> {record.diagnosis}</p>
+                        <p><span className="font-medium">Created:</span> {formatDate(record.created_at || '')}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedRecord(record)
+                          setIsDetailOpen(true)
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Details
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={() => handleDownloadPDF(record._id!)}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download PDF
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
 
-				{/* Filters and Search */}
-				<div className="p-6 border-b border-gray-200 bg-white">
-					<div className="flex items-center space-x-4">
-						<div className="relative flex-1 max-w-md">
-							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-							<Input
-								placeholder="Search records, patients..."
-								value={searchTerm}
-								onChange={(e) => setSearchTerm(e.target.value)}
-								className="pl-10"
-							/>
-						</div>
-						<div className="flex items-center space-x-2">
-							<Filter className="w-4 h-4 text-gray-500" />
-							<select
-								value={filterType}
-								onChange={(e) => setFilterType(e.target.value)}
-								className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-							>
-								<option value="all">All Categories</option>
-								<option value="laboratory">Laboratory</option>
-								<option value="imaging">Imaging</option>
-								<option value="cardiology">Cardiology</option>
-								<option value="consultation">Consultation</option>
-								<option value="procedure">Procedure</option>
-							</select>
-						</div>
-						<Button variant="outline">
-							<Upload className="w-4 h-4 mr-2" />
-							Upload
-						</Button>
-					</div>
-				</div>
+        {/* Record Detail Dialog */}
+        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                {selectedRecord && getRecordTypeIcon(selectedRecord.record_type)}
+                <span>{selectedRecord?.title}</span>
+              </DialogTitle>
+            </DialogHeader>
 
-				{/* Records List */}
-				<div className="flex-1 p-6 overflow-y-auto">
-					<div className="space-y-4">
-						{filteredRecords.map((record) => (
-							<Card
-								key={record.id}
-								className="hover:shadow-lg transition-shadow"
-							>
-								<CardContent className="p-6">
-									<div className="flex items-start justify-between">
-										<div className="flex items-start space-x-4 flex-1">
-											<div className="p-3 bg-blue-50 rounded-lg">
-												{getCategoryIcon(record.category)}
-											</div>
-											<div className="flex-1">
-												<div className="flex items-center space-x-3 mb-2">
-													<h3 className="text-lg font-semibold">
-														{record.title}
-													</h3>
-													<Badge className={getStatusColor(record.status)}>
-														{record.status}
-													</Badge>
-													<Badge className={getPriorityColor(record.priority)}>
-														{record.priority}
-													</Badge>
-												</div>
-												<div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
-													<span>
-														<strong>Patient:</strong> {record.patientName} (
-														{record.patientId})
-													</span>
-													<span>
-														<strong>Date:</strong> {record.date}
-													</span>
-													<span>
-														<strong>Type:</strong> {record.recordType}
-													</span>
-												</div>
-												<p className="text-gray-600 mb-3">
-													{record.description}
-												</p>
+            {selectedRecord && (
+              <div className="space-y-6">
+                {/* Record Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold mb-2">Record Information</h4>
+                    <div className="space-y-1 text-sm">
+                      <p><span className="font-medium">Type:</span> {selectedRecord.record_type}</p>
+                      <p><span className="font-medium">Patient ID:</span> {selectedRecord.patient_id}</p>
+                      <p><span className="font-medium">Doctor ID:</span> {selectedRecord.doctor_id}</p>
+                      <p><span className="font-medium">Created:</span> {formatDate(selectedRecord.created_at || '')}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => handleDownloadPDF(selectedRecord._id!)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download PDF
+                    </Button>
+                  </div>
+                </div>
 
-												{record.attachments &&
-													record.attachments.length > 0 && (
-														<div className="flex items-center space-x-2 mb-3">
-															<span className="text-sm text-gray-500">
-																Attachments:
-															</span>
-															{record.attachments.map((attachment, index) => (
-																<div
-																	key={index}
-																	className="flex items-center space-x-1 bg-gray-100 rounded px-2 py-1"
-																>
-																	{getFileIcon(attachment.type)}
-																	<span className="text-xs">
-																		{attachment.name}
-																	</span>
-																	<span className="text-xs text-gray-400">
-																		({attachment.size})
-																	</span>
-																</div>
-															))}
-														</div>
-													)}
-											</div>
-										</div>
-										<div className="flex items-center space-x-2">
-											<Dialog>
-												<DialogTrigger asChild>
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() => setSelectedRecord(record)}
-													>
-														<Eye className="w-4 h-4 mr-2" />
-														View
-													</Button>
-												</DialogTrigger>
-												<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-													<DialogHeader>
-														<DialogTitle className="flex items-center space-x-3">
-															<div className="p-2 bg-blue-50 rounded-lg">
-																{getCategoryIcon(record.category)}
-															</div>
-															<div>
-																<h3 className="text-xl font-bold">
-																	{record.title}
-																</h3>
-																<p className="text-gray-500">
-																	{record.patientName} ({record.patientId}) -{' '}
-																	{record.date}
-																</p>
-															</div>
-														</DialogTitle>
-													</DialogHeader>
+                {/* Chief Complaint */}
+                <div>
+                  <h4 className="font-semibold mb-2">Chief Complaint</h4>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedRecord.chief_complaint}</p>
+                </div>
 
-													<div className="space-y-6">
-														{/* Status and Priority */}
-														<div className="flex items-center space-x-4">
-															<Badge className={getStatusColor(record.status)}>
-																{record.status}
-															</Badge>
-															<Badge
-																className={getPriorityColor(record.priority)}
-															>
-																{record.priority} priority
-															</Badge>
-														</div>
+                {/* History of Present Illness */}
+                {selectedRecord.history_of_present_illness && (
+                  <div>
+                    <h4 className="font-semibold mb-2">History of Present Illness</h4>
+                    <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedRecord.history_of_present_illness}</p>
+                  </div>
+                )}
 
-														{/* Description */}
-														<div>
-															<h4 className="font-semibold mb-2">
-																Description
-															</h4>
-															<p className="text-gray-600">
-																{record.description}
-															</p>
-														</div>
+                {/* Physical Examination */}
+                {selectedRecord.physical_examination && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Physical Examination</h4>
+                    <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedRecord.physical_examination}</p>
+                  </div>
+                )}
 
-														{/* Results */}
-														<div>
-															<h4 className="font-semibold mb-3">
-																Results & Findings
-															</h4>
-															<Card>
-																<CardContent className="p-4">
-																	<div className="space-y-3">
-																		{Object.entries(record.results).map(
-																			([key, value]) => (
-																				<div
-																					key={key}
-																					className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
-																				>
-																					<span className="font-medium capitalize">
-																						{key
-																							.replace(/([A-Z])/g, ' $1')
-																							.trim()}
-																						:
-																					</span>
-																					<span className="text-gray-600">
-																						{value}
-																					</span>
-																				</div>
-																			)
-																		)}
-																	</div>
-																</CardContent>
-															</Card>
-														</div>
+                {/* Vital Signs */}
+                {selectedRecord.vital_signs && Object.keys(selectedRecord.vital_signs).length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Vital Signs</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {Object.entries(selectedRecord.vital_signs).map(([key, value]) => 
+                        value ? (
+                          <div key={key} className="bg-gray-50 p-3 rounded text-center">
+                            <p className="text-xs text-gray-600 capitalize">{key.replace('_', ' ')}</p>
+                            <p className="font-semibold">{value}</p>
+                          </div>
+                        ) : null
+                      )}
+                    </div>
+                  </div>
+                )}
 
-														{/* Attachments */}
-														{record.attachments &&
-															record.attachments.length > 0 && (
-																<div>
-																	<h4 className="font-semibold mb-3">
-																		Attachments
-																	</h4>
-																	<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-																		{record.attachments.map(
-																			(attachment, index) => (
-																				<Card key={index} className="p-4">
-																					<div className="flex items-center justify-between">
-																						<div className="flex items-center space-x-3">
-																							{getFileIcon(attachment.type)}
-																							<div>
-																								<p className="font-medium text-sm">
-																									{attachment.name}
-																								</p>
-																								<p className="text-xs text-gray-500">
-																									{attachment.size}
-																								</p>
-																							</div>
-																						</div>
-																						<Button size="sm" variant="outline">
-																							<Download className="w-3 h-3 mr-1" />
-																							Download
-																						</Button>
-																					</div>
-																				</Card>
-																			)
-																		)}
-																	</div>
-																</div>
-															)}
+                {/* Diagnosis */}
+                <div>
+                  <h4 className="font-semibold mb-2">Diagnosis</h4>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedRecord.diagnosis}</p>
+                </div>
 
-														{/* Doctor's Notes */}
-														<div>
-															<h4 className="font-semibold mb-3">
-																Doctor's Notes
-															</h4>
-															<Card>
-																<CardContent className="p-4">
-																	<Textarea
-																		value={record.notes}
-																		placeholder="Add your notes..."
-																		className="min-h-[100px] border-0 p-0 resize-none focus-visible:ring-0"
-																		readOnly
-																	/>
-																</CardContent>
-															</Card>
-														</div>
-													</div>
-												</DialogContent>
-											</Dialog>
-											<Button size="sm" variant="outline">
-												<Download className="w-4 h-4 mr-2" />
-												Download
-											</Button>
-											<Button size="sm" variant="outline">
-												<Edit className="w-4 h-4" />
-											</Button>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						))}
-					</div>
-				</div>
-			</div>
-		</div>
-	);
+                {/* Treatment Plan */}
+                <div>
+                  <h4 className="font-semibold mb-2">Treatment Plan</h4>
+                  <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedRecord.treatment_plan}</p>
+                </div>
+
+                {/* Medications */}
+                {selectedRecord.medications && selectedRecord.medications.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Medications</h4>
+                    <div className="space-y-2">
+                      {selectedRecord.medications.map((med, index) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <div><span className="font-medium">Name:</span> {med.name}</div>
+                            <div><span className="font-medium">Dosage:</span> {med.dosage}</div>
+                            <div><span className="font-medium">Frequency:</span> {med.frequency}</div>
+                            <div><span className="font-medium">Duration:</span> {med.duration}</div>
+                          </div>
+                          {med.instructions && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              <span className="font-medium">Instructions:</span> {med.instructions}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lab Results */}
+                {selectedRecord.lab_results && selectedRecord.lab_results.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Laboratory Results</h4>
+                    <div className="space-y-2">
+                      {selectedRecord.lab_results.map((lab, index) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                            <div><span className="font-medium">Test:</span> {lab.test_name}</div>
+                            <div><span className="font-medium">Result:</span> {lab.result}</div>
+                            <div><span className="font-medium">Reference:</span> {lab.reference_range}</div>
+                            <div>
+                              <Badge className={lab.status === 'normal' ? 'bg-green-100 text-green-800' : 
+                                               lab.status === 'critical' ? 'bg-red-100 text-red-800' : 
+                                               'bg-yellow-100 text-yellow-800'}>
+                                {lab.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Follow-up Instructions */}
+                {selectedRecord.follow_up_instructions && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Follow-up Instructions</h4>
+                    <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedRecord.follow_up_instructions}</p>
+                  </div>
+                )}
+
+                {/* Additional Notes */}
+                {selectedRecord.notes && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Additional Notes</h4>
+                    <p className="text-gray-700 bg-gray-50 p-3 rounded">{selectedRecord.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </ResponsiveDashboardLayout>
+    </ProtectedRoute>
+  )
 }

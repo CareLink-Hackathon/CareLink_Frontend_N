@@ -1,4 +1,4 @@
-import { ApiClient } from '@/lib/api';
+import { ApiClient, API_BASE_URL } from '@/lib/api';
 
 // Types for Doctor functionality
 export interface DoctorProfile {
@@ -50,42 +50,65 @@ export interface Appointment {
 	_id: string;
 	user_id: string;
 	user_email: string;
+	patient_name?: string;
+	patient_phone?: string;
+	patient_age?: number;
+	patient_gender?: string;
 	type: string;
 	doctor: string;
 	date: string;
 	time: string;
 	reason_for_visit?: string;
-	status: 'pending' | 'scheduled' | 'completed' | 'cancelled';
+	status: 'pending' | 'approved' | 'completed' | 'cancelled';
 	created_at: string;
 	updated_at: string;
-	patient_name?: string;
-	patient_phone?: string;
+	doctor_notes?: string;
+}
+
+export interface VitalSigns {
+	blood_pressure?: string;
+	heart_rate?: string;
+	temperature?: string;
+	weight?: string;
+	height?: string;
+	respiratory_rate?: string;
+	oxygen_saturation?: string;
+}
+
+export interface LabResult {
+	test_name: string;
+	result: string;
+	reference_range?: string;
+	status: 'normal' | 'abnormal' | 'critical';
+}
+
+export interface Medication {
+	name: string;
+	dosage: string;
+	frequency: string;
+	duration: string;
+	instructions?: string;
 }
 
 export interface MedicalRecord {
-	id: string;
-	patientName: string;
-	patientId: string;
-	recordType: string;
+	_id?: string;
+	patient_id: string;
+	doctor_id: string;
+	appointment_id?: string;
+	record_type: 'consultation' | 'diagnosis' | 'prescription' | 'laboratory' | 'imaging';
 	title: string;
-	date: string;
-	status: 'completed' | 'pending' | 'in-progress';
-	priority: 'low' | 'normal' | 'high' | 'critical';
-	category:
-		| 'laboratory'
-		| 'imaging'
-		| 'consultation'
-		| 'prescription'
-		| 'diagnosis';
-	description: string;
-	results?: Record<string, any>;
-	attachments?: Array<{
-		name: string;
-		type: string;
-		url: string;
-		size: string;
-	}>;
+	chief_complaint: string;
+	history_of_present_illness: string;
+	physical_examination: string;
+	diagnosis: string;
+	treatment_plan: string;
+	medications?: Medication[];
+	follow_up_instructions: string;
 	notes?: string;
+	vital_signs?: VitalSigns;
+	lab_results?: LabResult[];
+	created_at?: string;
+	updated_at?: string;
 }
 
 export interface Notification {
@@ -114,6 +137,12 @@ export interface DashboardStats {
 		month: string;
 		appointments: number;
 	}>;
+	// Additional stats for doctor dashboard
+	todayAppointments?: number;
+	thisWeekAppointments?: number;
+	thisMonthAppointments?: number;
+	pendingAppointments?: number;
+	approvedAppointments?: number;
 }
 
 class DoctorService {
@@ -123,34 +152,37 @@ class DoctorService {
 		this.apiClient = new ApiClient();
 	}
 
-	// Dashboard Analytics
+		// Dashboard Stats
 	async getDashboardStats(doctorId: string): Promise<DashboardStats> {
 		try {
-			// Since the backend doesn't have specific doctor dashboard endpoints yet,
-			// we'll aggregate data from existing appointments endpoint
-			const appointments = await this.getAppointments(doctorId);
-
+			console.log('🚀 DoctorService - getDashboardStats called with doctorId:', doctorId);
+			
+			const response = await this.apiClient.get<any>(
+				`/doctor/${doctorId}/dashboard-stats`
+			);
+			
+			console.log('📊 DoctorService - Dashboard stats response:', response);
+			
+			// Transform backend response to match frontend interface
 			const stats: DashboardStats = {
-				totalAppointments: appointments.length,
-				completedAppointments: appointments.filter(
-					(apt) => apt.status === 'completed'
-				).length,
-				ongoingAppointments: appointments.filter(
-					(apt) => apt.status === 'scheduled'
-				).length,
-				upcomingAppointments: appointments.filter(
-					(apt) => apt.status === 'pending'
-				).length,
-				totalPatients: 0, // Will be calculated from patient data
-				criticalPatients: 0, // Will be calculated from patient data
-				pendingActions: appointments.filter((apt) => apt.status === 'pending')
-					.length,
-				monthlyAppointments: [], // Will be calculated from appointments data
+				totalAppointments: response.stats.total_appointments || 0,
+				completedAppointments: response.stats.completed_appointments || 0,
+				ongoingAppointments: response.stats.approved_appointments || 0,
+				upcomingAppointments: response.stats.upcoming_appointments || 0,
+				totalPatients: response.stats.recent_patients_count || 0,
+				criticalPatients: 0, // This might need a separate endpoint
+				pendingActions: response.stats.pending_appointments || 0,
+				monthlyAppointments: [], // Could be enhanced with historical data
+				todayAppointments: response.stats.today_appointments || 0,
+				thisWeekAppointments: response.stats.this_week_appointments || 0,
+				thisMonthAppointments: response.stats.this_month_appointments || 0,
+				pendingAppointments: response.stats.pending_appointments || 0,
+				approvedAppointments: response.stats.approved_appointments || 0
 			};
 
 			return stats;
 		} catch (error) {
-			console.error('Error fetching dashboard stats:', error);
+			console.error('❌ DoctorService - Error fetching dashboard stats:', error);
 			throw error;
 		}
 	}
@@ -158,14 +190,71 @@ class DoctorService {
 	// Appointment Management
 	async getAppointments(doctorId: string): Promise<Appointment[]> {
 		try {
-			// Note: Backend currently has patient appointment endpoint,
-			// we'll need to adapt this or create doctor-specific endpoint
-			const response = await this.apiClient.get<Appointment[]>(
-				`/appointment/${doctorId}`
+			console.log('🚀 DoctorService - getAppointments called with doctorId:', doctorId);
+			
+			const response = await this.apiClient.get<any>(
+				`/doctor/${doctorId}/appointments`
 			);
-			return response;
+			
+			console.log('📅 DoctorService - Appointments response:', response);
+			
+			// Transform backend appointments to match frontend interface
+			const appointments: Appointment[] = response.appointments.map((apt: any) => ({
+				_id: apt._id,
+				user_id: apt.patient_id,
+				user_email: apt.patient_email,
+				patient_name: apt.patient_name,
+				patient_phone: apt.patient_phone,
+				patient_age: apt.patient_age,
+				patient_gender: apt.patient_gender,
+				type: apt.type,
+				doctor: apt.doctor_name,
+				date: apt.date,
+				time: apt.time,
+				reason_for_visit: apt.reason_for_visit,
+				status: apt.status as 'pending' | 'scheduled' | 'completed' | 'cancelled',
+				created_at: apt.created_at,
+				updated_at: apt.updated_at,
+				doctor_notes: apt.doctor_notes
+			}));
+			
+			return appointments;
 		} catch (error) {
-			console.error('Error fetching appointments:', error);
+			console.error('❌ DoctorService - Error fetching appointments:', error);
+			throw error;
+		}
+	}
+
+	async getTodayAppointments(doctorId: string): Promise<Appointment[]> {
+		try {
+			console.log('🚀 DoctorService - getTodayAppointments called with doctorId:', doctorId);
+			
+			const response = await this.apiClient.get<any>(
+				`/doctor/${doctorId}/appointments/today`
+			);
+			
+			console.log('📅 DoctorService - Today appointments response:', response);
+			
+			// Transform backend appointments to match frontend interface
+			const appointments: Appointment[] = response.appointments.map((apt: any) => ({
+				_id: apt._id,
+				user_id: apt.patient_id,
+				user_email: apt.patient_email,
+				patient_name: apt.patient_name,
+				type: apt.type,
+				doctor: response.doctor_name || '',
+				date: response.date,
+				time: apt.time,
+				reason_for_visit: apt.reason_for_visit,
+				status: apt.status as 'pending' | 'scheduled' | 'completed' | 'cancelled',
+				created_at: apt.created_at || '',
+				updated_at: apt.updated_at || '',
+				doctor_notes: apt.doctor_notes
+			}));
+			
+			return appointments;
+		} catch (error) {
+			console.error('❌ DoctorService - Error fetching today appointments:', error);
 			throw error;
 		}
 	}
@@ -173,18 +262,28 @@ class DoctorService {
 	async updateAppointmentStatus(
 		appointmentId: string,
 		status: string,
-		doctorId: string
+		doctorId: string,
+		doctorNotes?: string
 	): Promise<void> {
 		try {
-			// This would need a new backend endpoint for doctors to update appointment status
-			await this.apiClient.post(
-				`/doctor/${doctorId}/appointment/${appointmentId}/status`,
+			console.log('🚀 DoctorService - updateAppointmentStatus called with:', {
+				appointmentId,
+				status,
+				doctorId,
+				doctorNotes
+			});
+			
+			await this.apiClient.put(
+				`/doctor/${doctorId}/appointments/${appointmentId}/status`,
 				{
 					status,
+					doctor_notes: doctorNotes
 				}
 			);
+			
+			console.log('✅ DoctorService - Appointment status updated successfully');
 		} catch (error) {
-			console.error('Error updating appointment status:', error);
+			console.error('❌ DoctorService - Error updating appointment status:', error);
 			throw error;
 		}
 	}
@@ -265,29 +364,29 @@ class DoctorService {
 				queryParams.append('patient_id', filters.patientId);
 			if (filters?.type) queryParams.append('type', filters.type);
 
-			const response = await this.apiClient.get<any[]>(
-				`/doctor/${doctorId}/records?${queryParams}`
+			const response = await this.apiClient.get<MedicalRecord[]>(
+				`/api/medical-records/doctor/${doctorId}?${queryParams}`
 			);
-			return response.map(this.mapToMedicalRecord);
+			return response || [];
 		} catch (error) {
 			console.error('Error fetching medical records:', error);
-			// Return mock data for development
-			return this.getMockMedicalRecords();
+			return [];
 		}
 	}
 
 	async createMedicalRecord(
-		record: Partial<MedicalRecord>,
-		doctorId: string
-	): Promise<MedicalRecord> {
+		record: Partial<MedicalRecord>
+	): Promise<{ message: string; record_id: string }> {
 		try {
-			const response = await this.apiClient.post<any>(
-				`/doctor/${doctorId}/records`,
+			console.log('🏥 Creating medical record via API:', record);
+			const response = await this.apiClient.post<{ message: string; record_id: string }>(
+				`/api/medical-records`,
 				record
 			);
-			return this.mapToMedicalRecord(response);
+			console.log('✅ Medical record created successfully:', response);
+			return response;
 		} catch (error) {
-			console.error('Error creating medical record:', error);
+			console.error('❌ Error creating medical record:', error);
 			throw error;
 		}
 	}
@@ -299,11 +398,50 @@ class DoctorService {
 	): Promise<void> {
 		try {
 			await this.apiClient.put(
-				`/doctor/${doctorId}/records/${recordId}`,
+				`/api/medical-records/${recordId}`,
 				updates
 			);
 		} catch (error) {
 			console.error('Error updating medical record:', error);
+			throw error;
+		}
+	}
+
+	async downloadMedicalRecordPDF(recordId: string): Promise<void> {
+		try {
+			const response = await fetch(`${API_BASE_URL}/api/medical-records/${recordId}/pdf`, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${localStorage.getItem('token')}`,
+				},
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to download PDF');
+			}
+
+			// Get the filename from response headers or create a default one
+			const contentDisposition = response.headers.get('content-disposition');
+			let filename = 'medical_record.pdf';
+			if (contentDisposition) {
+				const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+				if (filenameMatch) {
+					filename = filenameMatch[1].replace(/['"]/g, '');
+				}
+			}
+
+			// Convert response to blob and download
+			const blob = await response.blob();
+			const url = window.URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = filename;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			window.URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error('Error downloading medical record PDF:', error);
 			throw error;
 		}
 	}
@@ -317,8 +455,7 @@ class DoctorService {
 			return response.map(this.mapToNotification);
 		} catch (error) {
 			console.error('Error fetching notifications:', error);
-			// Return mock data for development
-			return this.getMockNotifications();
+			return [];
 		}
 	}
 
@@ -368,24 +505,6 @@ class DoctorService {
 			avatar: data.avatar,
 			vitals: data.vitals,
 			medications: data.medications,
-			notes: data.notes,
-		};
-	}
-
-	private mapToMedicalRecord(data: any): MedicalRecord {
-		return {
-			id: data._id || data.id,
-			patientName: data.patient_name || data.patientName,
-			patientId: data.patient_id || data.patientId,
-			recordType: data.record_type || data.recordType,
-			title: data.title,
-			date: data.date,
-			status: data.status || 'pending',
-			priority: data.priority || 'normal',
-			category: data.category || 'consultation',
-			description: data.description,
-			results: data.results,
-			attachments: data.attachments,
 			notes: data.notes,
 		};
 	}
@@ -440,48 +559,38 @@ class DoctorService {
 		];
 	}
 
-	private getMockMedicalRecords(): MedicalRecord[] {
-		return [
-			{
-				id: '1',
-				patientName: 'John Doe',
-				patientId: 'P001',
-				recordType: 'Lab Results',
-				title: 'Complete Blood Count & Lipid Panel',
-				date: '2025-01-27',
-				status: 'completed',
-				priority: 'normal',
-				category: 'laboratory',
-				description:
-					'Routine blood work including CBC, lipid panel, and glucose levels',
-				results: {
-					hemoglobin: '14.2 g/dL (Normal)',
-					whiteBloodCells: '6,800/μL (Normal)',
-					platelets: '285,000/μL (Normal)',
-					glucose: '98 mg/dL (Normal)',
-					cholesterol: '195 mg/dL (Borderline)',
-				},
-			},
-		];
-	}
+	// Doctor Profile Management
+	async getProfile(doctorId: string): Promise<DoctorProfile> {
+		try {
+			console.log('🚀 DoctorService - getProfile called with doctorId:', doctorId);
+			
+			const response = await this.apiClient.get<any>(
+				`/doctor/${doctorId}/profile`
+			);
+			
+			console.log('👤 DoctorService - Doctor profile response:', response);
+			
+			// Transform backend response to match frontend interface
+			const profile: DoctorProfile = {
+				_id: response.doctor._id || doctorId,
+				first_name: response.doctor.first_name || '',
+				last_name: response.doctor.last_name || '',
+				email: response.doctor.email || '',
+				phone_number: response.doctor.phone_number || '',
+				specialization: response.doctor.specialty || '',
+				license_number: response.doctor.license_number || '',
+				years_of_experience: response.doctor.years_of_experience || 0,
+				hospital_affiliation: response.doctor.hospital_affiliation || '',
+				account_type: 'doctor',
+				created_at: response.doctor.created_at || '',
+				token: response.token || ''
+			};
 
-	private getMockNotifications(): Notification[] {
-		return [
-			{
-				id: '1',
-				type: 'appointment',
-				priority: 'high',
-				title: 'Urgent: Patient Emergency',
-				message:
-					'John Doe (P001) has been admitted to the ER with chest pain. Immediate attention required.',
-				timestamp: '5 minutes ago',
-				read: false,
-				category: 'emergency',
-				patientName: 'John Doe',
-				patientId: 'P001',
-				actionRequired: true,
-			},
-		];
+			return profile;
+		} catch (error) {
+			console.error('❌ DoctorService - Error fetching doctor profile:', error);
+			throw error;
+		}
 	}
 }
 

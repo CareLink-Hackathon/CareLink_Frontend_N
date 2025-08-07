@@ -61,31 +61,6 @@ interface Patient {
   medical_records_count?: number;
 }
 
-interface VitalSigns {
-  blood_pressure?: string;
-  heart_rate?: string;
-  temperature?: string;
-  weight?: string;
-  height?: string;
-  respiratory_rate?: string;
-  oxygen_saturation?: string;
-}
-
-interface LabResult {
-  test_name: string;
-  result: string;
-  reference_range?: string;
-  status: 'normal' | 'abnormal' | 'critical';
-}
-
-interface Medication {
-  name: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
-  instructions?: string;
-}
-
 interface MedicalRecord {
   _id?: string;
   patient_id: string;
@@ -98,11 +73,30 @@ interface MedicalRecord {
   physical_examination: string;
   diagnosis: string;
   treatment_plan: string;
-  medications?: Medication[];
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions?: string;
+  }>;
   follow_up_instructions: string;
   notes?: string;
-  vital_signs?: VitalSigns;
-  lab_results?: LabResult[];
+  vital_signs?: {
+    blood_pressure?: string;
+    heart_rate?: string;
+    temperature?: string;
+    weight?: string;
+    height?: string;
+    respiratory_rate?: string;
+    oxygen_saturation?: string;
+  };
+  lab_results?: Array<{
+    test_name: string;
+    result: string;
+    reference_range?: string;
+    status: 'normal' | 'abnormal' | 'critical';
+  }>;
   created_at?: string;
   updated_at?: string;
 }
@@ -145,7 +139,7 @@ export default function DoctorPatients() {
   const loadPatients = async () => {
     const doctorId = getDoctorId();
     if (!doctorId) {
-      console.warn('No doctor ID found');
+      console.warn('⚠️ No doctor ID found');
       setLoading(false);
       return;
     }
@@ -154,7 +148,7 @@ export default function DoctorPatients() {
       setLoading(true);
       setError(null);
 
-      console.log('Loading patients for doctor:', doctorId);
+      console.log('🚀 Loading patients for doctor:', doctorId);
 
       // Get all appointments for this doctor
       const appointments = await doctorService.getAppointments(doctorId);
@@ -183,10 +177,12 @@ export default function DoctorPatients() {
       });
 
       const uniquePatients = Array.from(patientMap.values());
+      console.log('👥 Patients with approved appointments:', uniquePatients);
+      
       setPatients(uniquePatients);
 
     } catch (error) {
-      console.error('Error loading patients:', error);
+      console.error('❌ Error loading patients:', error);
       setError('Failed to load patients');
     } finally {
       setLoading(false);
@@ -196,8 +192,10 @@ export default function DoctorPatients() {
   // Load data on component mount
   useEffect(() => {
     if (user?.role === 'doctor') {
+      console.log('🚀 DoctorPatients - Loading data for doctor:', user);
       loadPatients();
     } else {
+      console.log('❌ DoctorPatients - User is not a doctor:', user);
       setLoading(false);
     }
   }, [user]);
@@ -231,37 +229,21 @@ export default function DoctorPatients() {
 
   // Handle medical record creation
   const handleCreateMedicalRecord = async () => {
-    if (!selectedPatient) {
-      setError('No patient selected');
-      return;
-    }
+    if (!selectedPatient) return;
     
     const doctorId = getDoctorId();
-    if (!doctorId) {
-      setError('Doctor ID not found');
-      return;
-    }
-
-    // Validate required fields
-    if (!newMedicalRecord.title || !newMedicalRecord.chief_complaint || !newMedicalRecord.diagnosis || !newMedicalRecord.treatment_plan) {
-      setError('Please fill in all required fields: Title, Chief Complaint, Diagnosis, and Treatment Plan');
-      return;
-    }
+    if (!doctorId) return;
 
     try {
       setIsCreatingRecord(true);
-      setError(null);
       
-      const recordData: Partial<MedicalRecord> = {
+      const recordData = {
         ...newMedicalRecord,
         patient_id: selectedPatient.user_id,
         doctor_id: doctorId
       };
 
-      const result = await doctorService.createMedicalRecord(recordData);
-      
-      // Show success message
-      const successMessage = `Medical record created successfully! Record ID: ${result.record_id}`;
+      await doctorService.createMedicalRecord(recordData as any, doctorId);
       
       // Reset form and close dialog
       setNewMedicalRecord({
@@ -281,37 +263,13 @@ export default function DoctorPatients() {
       setIsCreateRecordOpen(false);
       setSelectedPatient(null);
       
-      // Show success feedback temporarily
-      setError(null);
-      const tempSuccessDiv = document.createElement('div');
-      tempSuccessDiv.className = 'fixed top-4 right-4 bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-lg shadow-lg z-50 transition-all duration-300';
-      tempSuccessDiv.innerHTML = `
-        <div class="flex items-center space-x-2">
-          <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-          </svg>
-          <span class="font-medium">${successMessage}</span>
-        </div>
-      `;
-      document.body.appendChild(tempSuccessDiv);
-      
-      // Remove success message after 5 seconds
-      setTimeout(() => {
-        if (document.body.contains(tempSuccessDiv)) {
-          tempSuccessDiv.style.opacity = '0';
-          setTimeout(() => {
-            if (document.body.contains(tempSuccessDiv)) {
-              document.body.removeChild(tempSuccessDiv);
-            }
-          }, 300);
-        }
-      }, 5000);
-      
       // Reload patients to update counts
       await loadPatients();
       
+      console.log('✅ Medical record created successfully');
     } catch (error) {
-      setError(`Failed to create medical record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Error creating medical record:', error);
+      setError('Failed to create medical record');
     } finally {
       setIsCreatingRecord(false);
     }
@@ -612,12 +570,6 @@ export default function DoctorPatients() {
                 <span>Create Medical Record for {selectedPatient?.patient_name}</span>
               </DialogTitle>
             </DialogHeader>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
-              </div>
-            )}
             
             <div className="space-y-6">
               {/* Record Type and Title */}
@@ -850,7 +802,6 @@ export default function DoctorPatients() {
                   Cancel
                 </Button>
                 <Button 
-                  type="button"
                   onClick={handleCreateMedicalRecord}
                   disabled={isCreatingRecord}
                   className="bg-blue-600 hover:bg-blue-700"

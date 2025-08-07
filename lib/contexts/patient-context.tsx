@@ -33,6 +33,14 @@ interface PatientContextType extends PatientState {
 	// Chat operations
 	createNewChat: (chatName: string) => Promise<string | null>;
 	sendMessage: (chatId: string, message: string) => Promise<boolean>;
+	sendEnhancedMessage: (chatId: string, options: {
+		message?: string;
+		audioBlob?: Blob;
+		audioLanguage?: 'en' | 'fr';
+		documentFile?: File;
+	}) => Promise<boolean>;
+	transcribeAudio: (audioBlob: Blob, language?: 'en' | 'fr') => Promise<string | null>;
+	processDocument: (documentFile: File) => Promise<string | null>;
 	loadChatHistory: () => Promise<void>;
 	selectChat: (chatId: string) => void;
 
@@ -178,6 +186,103 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
 		return success !== null;
 	};
 
+	const sendEnhancedMessage = async (
+		chatId: string,
+		options: {
+			message?: string;
+			audioBlob?: Blob;
+			audioLanguage?: 'en' | 'fr';
+			documentFile?: File;
+		}
+	): Promise<boolean> => {
+		if (!user?._id) return false;
+
+		const success = await withLoading(async () => {
+			const response = await patientService.sendEnhancedChatMessage(
+				user._id,
+				chatId,
+				options
+			);
+
+			// Create combined input description for display
+			const inputParts = [];
+			if (options.message) inputParts.push(options.message);
+			if (options.audioBlob) inputParts.push(`[Voice message in ${options.audioLanguage || 'en'}]`);
+			if (options.documentFile) inputParts.push(`[Document: ${options.documentFile.name}]`);
+			
+			const displayMessage = inputParts.join(' | ');
+
+			// Update chat in state
+			const newMessage: ChatMessage = {
+				query: displayMessage,
+				response: response.response,
+				timestamp: new Date().toISOString(),
+			};
+
+			setState((prev) => {
+				const updatedChats = prev.chats.map((chat) => {
+					if (chat.chat_id === chatId) {
+						return {
+							...chat,
+							messages: [...chat.messages, newMessage],
+							updated_at: new Date().toISOString(),
+							chat_name: response.chat_name,
+						};
+					}
+					return chat;
+				});
+
+				const updatedCurrentChat =
+					prev.currentChat?.chat_id === chatId
+						? updatedChats.find((chat) => chat.chat_id === chatId) ||
+						  prev.currentChat
+						: prev.currentChat;
+
+				return {
+					...prev,
+					chats: updatedChats,
+					currentChat: updatedCurrentChat,
+				};
+			});
+
+			return true;
+		});
+
+		return success !== null;
+	};
+
+	const transcribeAudio = async (
+		audioBlob: Blob,
+		language: 'en' | 'fr' = 'en'
+	): Promise<string | null> => {
+		if (!user?._id || !state.currentChat) return null;
+
+		return withLoading(async () => {
+			const response = await patientService.transcribeAudio(
+				user._id,
+				state.currentChat!.chat_id,
+				audioBlob,
+				language
+			);
+
+			return response.transcribed_text;
+		});
+	};
+
+	const processDocument = async (documentFile: File): Promise<string | null> => {
+		if (!user?._id || !state.currentChat) return null;
+
+		return withLoading(async () => {
+			const response = await patientService.processDocument(
+				user._id,
+				state.currentChat!.chat_id,
+				documentFile
+			);
+
+			return response.extracted_text;
+		});
+	};
+
 	const loadChatHistory = async (): Promise<void> => {
 		if (!user?._id) return;
 
@@ -288,6 +393,9 @@ export function PatientProvider({ children }: { children: React.ReactNode }) {
 		...state,
 		createNewChat,
 		sendMessage,
+		sendEnhancedMessage,
+		transcribeAudio,
+		processDocument,
 		loadChatHistory,
 		selectChat,
 		requestAppointment,
